@@ -72,7 +72,7 @@ class ApprovalService {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
 
-    final url = Uri.parse('${ApiConfig.baseUrl}api/attn/GetAppStatus');
+    final url = Uri.parse('${ApiConfig.baseUrl}api/attn/GetEmpAppStatus');
     
     try {
       final response = await http.get(
@@ -258,5 +258,63 @@ class ApprovalService {
     } catch (e) {
       rethrow;
     }
+  }
+
+  // Regular Leave (Attendance)
+  Future<Map<String, dynamic>> getLeaveApprovals() async {
+    return _fetchData('api/attn/emplapp/');
+  }
+  Future<Map<String, dynamic>> getCompletedLeaveApprovals({String? fDate, String? tDate}) async {
+    return _fetchData('api/attn/emplappcompleted/', fDate: fDate, tDate: tDate);
+  }
+
+  // Leave Compensation
+  Future<Map<String, dynamic>> getLeaveCompApprovals() async {
+    return _fetchData('api/attn/emplgapp/');
+  }
+  Future<Map<String, dynamic>> getCompletedLeaveCompApprovals({String? fDate, String? tDate}) async {
+    return _fetchData('api/attn/emplgappcompleted/', fDate: fDate, tDate: tDate);
+  }
+
+  // Advance / Advance Adjustment
+  Future<Map<String, dynamic>> getAdvanceApprovals() async {
+    return _fetchData('api/aar/empaarapp/');
+  }
+  Future<Map<String, dynamic>> getCompletedAdvanceApprovals({String? fDate, String? tDate}) async {
+    return _fetchData('api/aar/empaarappcompleted/', fDate: fDate, tDate: tDate);
+  }
+
+  // Shift Deviation
+  Future<Map<String, dynamic>> getShiftDevApprovals() async {
+    return _fetchData('api/essshiftdev/getlistapp/');
+  }
+  Future<Map<String, dynamic>> getCompletedShiftDevApprovals({String? fDate, String? tDate}) async {
+    return _fetchData('api/essshiftdev/getlistappcompleted', fDate: fDate, tDate: tDate);
+  }
+
+  // Permission
+  Future<Map<String, dynamic>> getPermissionApprovals() async {
+    return _fetchData('api/attn/empperapp/');
+  }
+  Future<Map<String, dynamic>> getCompletedPermissionApprovals({String? fDate, String? tDate}) async {
+    return _fetchData('api/attn/empperappcompleted/', fDate: fDate, tDate: tDate);
+  }
+
+  Future<Map<String, dynamic>> _fetchData(String endpoint, {String? fDate, String? tDate}) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+    
+    String query = "";
+    if (fDate != null && tDate != null) {
+      query = (endpoint.contains('?') ? "&" : "?") + "FDate=$fDate&TDate=$tDate";
+    }
+    
+    final url = Uri.parse('${ApiConfig.baseUrl}$endpoint$query');
+    final response = await http.get(url, headers: user.toHeaders());
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return jsonDecode(data['response']);
+    }
+    throw Exception('Failed to load data for $endpoint');
   }
 }

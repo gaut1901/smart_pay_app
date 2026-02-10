@@ -18,11 +18,21 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   final LeaveService _leaveService = LeaveService();
   
   List<LeaveRequest> _history = [];
-  List<LeaveBalance> _balances = [];
+  List<LeaveBalance> _balances = []; // For Apply Leave (Current)
+  List<LeaveBalance> _periodBalances = []; // For Leave Balance Tab (Search)
   bool _isLoadingHistory = true;
   bool _isLoadingBalance = true;
+  bool _isLoadingPeriodBalance = true;
   String? _historyError;
   String? _balanceError;
+
+
+  // New Design State
+  String? _selectedPeriod;
+  DateTime _periodStartDate = DateTime(DateTime.now().year, 1, 1);
+  DateTime _periodEndDate = DateTime(DateTime.now().year, 12, 31);
+  List<String> _periodOptions = [];
+
 
   // Form fields
   String? _selectedLeaveType;
@@ -41,18 +51,60 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   PlatformFile? _selectedFile;
   bool _isUploadingFile = false;
 
+  // Search
+  final TextEditingController _searchController = TextEditingController();
+  List<LeaveBalance> _filteredBalances = [];
+  List<String> _leaveHeaders = [];
+  bool _isLoadingHeaders = true;
+
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
+    _generatePeriodOptions();
     _loadData();
     _fetchLookup();
+    _searchController.addListener(_onSearchChanged);
   }
+
+
+  void _generatePeriodOptions() {
+    final currentYear = DateTime.now().year;
+    final nextYear = currentYear + 1;
+    final leaveTypes = ['CL', 'EL', 'SL', 'CO', 'Special Leave', 'Optional Leave']; // Common types
+    
+    List<String> options = [];
+    for (var year in [currentYear, nextYear]) {
+      for (var type in leaveTypes) {
+        options.add('$type (01-01-$year - 31-12-$year)');
+      }
+    }
+    _periodOptions = options;
+  }
+
+
+  void _onSearchChanged() {
+    setState(() {
+      if (_searchController.text.isEmpty) {
+        _filteredBalances = _balances;
+      } else {
+        _filteredBalances = _balances.where((balance) => 
+          balance.leaveType.toLowerCase().contains(_searchController.text.toLowerCase())
+        ).toList();
+      }
+    });
+  }
+
+
 
   void _loadData() {
     _fetchHistory();
-    _fetchBalance();
+    _fetchBalance(); // Fetch current for Apply Leave
+    _fetchPeriodBalance(); // Fetch period for Leave Balance tab
+    _fetchHeaders();
   }
+
 
   Future<void> _fetchLookup() async {
     setState(() => _isLoadingLookup = true);
@@ -101,6 +153,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
       _balanceError = null;
     });
     try {
+      // Restore: Always fetch current balance for "Apply Leave" tab
       final balances = await _leaveService.getLeaveBalance();
       setState(() {
         _balances = balances;
@@ -111,6 +164,61 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
         _balanceError = e.toString().replaceAll('Exception: ', '');
         _isLoadingBalance = false;
       });
+    }
+  }
+
+  Future<void> _fetchPeriodBalance() async {
+    setState(() {
+      _isLoadingPeriodBalance = true;
+    });
+    try {
+      // Fetch specific date balance for "Leave Balance" tab
+      final balances = await _leaveService.getLeaveBalance(date: _periodStartDate);
+      setState(() {
+        _periodBalances = balances;
+        _isLoadingPeriodBalance = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingPeriodBalance = false;
+      });
+      // Optionally handle error for period balance
+    }
+  }
+
+  Future<void> _selectPeriodDate(bool isStart) async {
+    final initialDate = isStart ? _periodStartDate : _periodEndDate;
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (date != null) {
+      setState(() {
+        if (isStart) {
+          _periodStartDate = date;
+        } else {
+          _periodEndDate = date;
+        }
+      });
+    }
+  }
+
+
+
+  Future<void> _fetchHeaders() async {
+    setState(() => _isLoadingHeaders = true);
+    try {
+      final headers = await _leaveService.getEmployeeLeaveHeaders();
+      setState(() {
+        _leaveHeaders = headers;
+        _isLoadingHeaders = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingHeaders = false);
+      // Optional: Handle error
+      debugPrint('Error fetching headers: $e');
     }
   }
 
@@ -262,6 +370,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   void dispose() {
     _tabController.dispose();
     _remarksController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -286,6 +395,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
           indicatorColor: AppColors.accent,
           indicatorWeight: 3,
           tabs: const [
+            Tab(text: 'Leave Balance'),
             Tab(text: 'Apply Leave'),
             Tab(text: 'Leave History'),
           ],
@@ -294,6 +404,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
       body: TabBarView(
         controller: _tabController,
         children: [
+          _buildLeaveBalanceTab(),
           _buildApplyLeaveTab(),
           _buildLeaveHistoryTab(),
         ],
@@ -667,4 +778,233 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
       ),
     );
   }
+  Widget _buildLeaveBalanceTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: AppStyles.modernCardDecoration,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Leave Balance', style: AppStyles.heading.copyWith(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+                _buildPeriodDropdown(),
+                const SizedBox(height: 16),
+                _buildDateSearchRow(),
+                const SizedBox(height: 20),
+                Center(
+                  child: Text('Leave Balance', style: TextStyle(
+                    fontSize: 16, 
+                    fontWeight: FontWeight.bold, 
+                    color: AppColors.textDark
+                  )),
+                ),
+                const SizedBox(height: 10),
+                const Divider(),
+                _buildBalanceTable(),
+                const Divider(),
+                _buildStatusDaysTable(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodDropdown() {
+    return Container(
+      width: 250, // Limit width as per design roughly
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          hint: const Text('Select Leave Period'),
+          value: _selectedPeriod,
+          items: _periodOptions.map((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(value, style: const TextStyle(fontSize: 14)),
+            );
+          }).toList(),
+          onChanged: (val) {
+            if (val != null) {
+              setState(() {
+                _selectedPeriod = val;
+                try {
+                  final parts = val.split('(');
+                  if (parts.length > 1) {
+                    final datePart = parts[1].replaceAll(')', '');
+                    final dates = datePart.split(' - ');
+                    if (dates.length == 2) {
+                      _periodStartDate = DateFormat('dd-MM-yyyy').parse(dates[0]);
+                      _periodEndDate = DateFormat('dd-MM-yyyy').parse(dates[1]);
+                    }
+                  }
+                } catch (e) {
+                  debugPrint('Error parsing date: $e');
+                }
+              });
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateSearchRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Column(
+          children: [
+            _buildDateDisplay(_periodStartDate, () => _selectPeriodDate(true)),
+            const SizedBox(height: 10),
+            _buildDateDisplay(_periodEndDate, () => _selectPeriodDate(false)),
+          ],
+        ),
+        const Spacer(),
+        _buildSearchButton(),
+      ],
+    );
+  }
+
+  Widget _buildDateDisplay(DateTime date, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: 160,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_month, color: Color(0xFFB8860B), size: 16),
+            const SizedBox(width: 8),
+            Text(DateFormat('dd-MM-yyyy').format(date), 
+              style: const TextStyle(fontSize: 13, color: AppColors.textDark)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchButton() {
+    return SizedBox(
+      height: 40,
+      width: 40, // Small square button
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFDE3C4B), // Red color from image
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        ),
+        onPressed: _fetchPeriodBalance,
+        child: const Icon(Icons.search, color: Colors.white, size: 20),
+      ),
+    );
+  }
+
+
+
+  Widget _buildBalanceTable() {
+    if (_isLoadingPeriodBalance) {
+      return const Center(child: Padding(
+        padding: EdgeInsets.all(20.0),
+        child: CircularProgressIndicator(),
+      ));
+    }
+
+    if (_periodBalances.isEmpty) {
+      return const Center(child: Padding(
+        padding: EdgeInsets.all(20.0),
+        child: Text('No records found'),
+      ));
+    }
+
+    const headerStyle = TextStyle(color: Color(0xFFB8860B), fontWeight: FontWeight.bold, fontSize: 13);
+
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        headingRowColor: MaterialStateProperty.all(Colors.white),
+        columnSpacing: 15,
+        columns: const [
+          DataColumn(label: Text('Leave', style: headerStyle)),
+          DataColumn(label: Text('Opening', style: headerStyle)),
+          DataColumn(label: Text('Credit', style: headerStyle)),
+          DataColumn(label: Text('Laps', style: headerStyle)),
+          DataColumn(label: Text('Taken', style: headerStyle)),
+          DataColumn(label: Text('Pending', style: headerStyle)),
+          DataColumn(label: Text('Closing', style: headerStyle)),
+        ],
+        rows: _periodBalances.map((balance) {
+          return DataRow(
+            cells: [
+              DataCell(Text(balance.leaveType, style: const TextStyle(fontSize: 13))),
+              DataCell(Text(balance.yearOpen.toStringAsFixed(0), style: const TextStyle(fontSize: 13))),
+              DataCell(Text(balance.yearCredit.toStringAsFixed(0), style: const TextStyle(fontSize: 13))),
+              DataCell(Text(balance.yearLaps.toStringAsFixed(0), style: const TextStyle(fontSize: 13))),
+              DataCell(Text(balance.yearTaken.toStringAsFixed(0), style: const TextStyle(fontSize: 13))),
+              DataCell(Text(balance.pending.toStringAsFixed(0), style: const TextStyle(fontSize: 13))),
+              DataCell(Text(balance.yearBalance.toStringAsFixed(0), style: const TextStyle(fontSize: 13))),
+            ],
+          );
+        }).toList(),
+
+      ),
+    );
+  }
+
+  Widget _buildStatusDaysTable() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.only(top: 10),
+      child: Table(
+        border: TableBorder.all(color: Colors.grey.shade200),
+        columnWidths: const {
+          0: FlexColumnWidth(1),
+          1: FlexColumnWidth(1),
+        },
+        children: const [
+          TableRow(
+            children: [
+              Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Text('Status', style: TextStyle(color: Color(0xFF555555), fontWeight: FontWeight.bold)),
+              ),
+              Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Text('Days', style: TextStyle(color: Color(0xFF555555), fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          TableRow(
+            children: [
+              Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(''),
+              ),
+              Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(''),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+
 }

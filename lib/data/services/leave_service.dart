@@ -30,12 +30,12 @@ class LeaveService {
     }
   }
 
-  Future<List<LeaveBalance>> getLeaveBalance() async {
+  Future<List<LeaveBalance>> getLeaveBalance({DateTime? date}) async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
 
-    final now = DateTime.now();
-    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final targetDate = date ?? DateTime.now();
+    final dateStr = '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
     final url = Uri.parse('${ApiConfig.baseUrl}api/emplreq/getLeaveBalance/?fdate=$dateStr');
     
     try {
@@ -213,6 +213,32 @@ class LeaveService {
         }
       } else {
         throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+  Future<List<String>> getEmployeeLeaveHeaders() async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}api/empleavebalance/getlist');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: user.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        // The response field is a string containing JSON
+        final responseData = jsonDecode(data['response']);
+        // Check for dtSalaryName which contains the leave heads
+        final List<dynamic> heads = responseData['dtSalaryName'] ?? [];
+        return heads.map((e) => e['LeaveHead'].toString()).toList();
+      } else {
+        throw Exception('Failed to load leave headers: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
