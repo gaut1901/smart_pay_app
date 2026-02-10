@@ -1,0 +1,231 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import '../../core/api_config.dart';
+import '../models/profile_model.dart';
+import '../models/wages_model.dart';
+import 'auth_service.dart';
+
+class ProfileService {
+  Future<ProfileModel> getProfileData({String action = 'View'}) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    // For ESS, id is usually the empCode and action is 'View' or 'Modify'
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.profile}/?id=${user.empCode}&action=$action');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: user.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return ProfileModel.fromJson(jsonDecode(data['response']));
+      } else {
+        throw Exception('Failed to load profile data: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getLookupData({
+    String? ctc,
+    String? salaryType,
+    List<dynamic>? dtEarn,
+  }) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.profileLookup}');
+    
+    final body = {
+      "EmpCode": user.empCode,
+      "CTC": ctc ?? "0",
+      "SalaryType": salaryType ?? "",
+      "dtEarn": dtEarn ?? [],
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: user.toHeaders(),
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return jsonDecode(data['response']);
+      } else {
+        throw Exception('Failed to load lookup data: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> submitProfile(ProfileModel profile) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.profileSubmit}');
+    
+    try {
+      final response = await http.post(
+        url,
+        headers: user.toHeaders(),
+        body: jsonEncode(profile.toJson()),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return jsonDecode(data['response']);
+      } else {
+        throw Exception('Failed to submit profile: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<String> uploadProfileDocument({
+    required String type, // 'Photo', 'Pan', 'Adhar', 'DL', 'Passport', 'Card'
+    required File file,
+    String? idNumber,
+    String? insuranceNo,
+  }) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    String endpoint;
+    switch (type) {
+      case 'Photo': endpoint = ApiConfig.profilePhotoUpload; break;
+      case 'Pan': endpoint = ApiConfig.profilePanUpload; break;
+      case 'Adhar': endpoint = ApiConfig.profileAdharUpload; break;
+      case 'DL': endpoint = ApiConfig.profileDLUpload; break;
+      case 'Passport': endpoint = ApiConfig.profilePassportUpload; break;
+      case 'Card': endpoint = ApiConfig.profileCardUpload; break;
+      default: throw Exception('Invalid document type');
+    }
+
+    final url = Uri.parse('${ApiConfig.baseUrl}$endpoint/?empcode=${user.empCode}');
+    var request = http.MultipartRequest('POST', url);
+    
+    final headers = user.toHeaders();
+    headers.forEach((key, value) {
+      if (key != 'Content-Type') {
+        request.headers[key] = value;
+      }
+    });
+
+    if (idNumber != null && type != 'Card' && type != 'Photo') {
+      request.fields['IDNumber'] = idNumber;
+    }
+
+    if (type == 'Card') {
+      request.fields['empcode'] = user.empCode;
+      if (insuranceNo != null) {
+        request.fields['insuranceno'] = insuranceNo;
+      }
+    }
+
+    final fileName = file.path.split('/').last;
+    var multipartFile = await http.MultipartFile.fromPath(
+      fileName, 
+      file.path,
+      filename: fileName,
+    );
+    request.files.add(multipartFile);
+
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['response']; // Returns the path to the uploaded file
+      } else {
+        throw Exception('Failed to upload $type: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<WagesModel> getWagesData() async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.wagesLookup}/?empcode=${user.empCode}');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: user.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return WagesModel.fromJson(jsonDecode(data['response']));
+      } else {
+        throw Exception('Failed to load wages data: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<WagesModel> addNewSalary() async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.wagesAddNewSalary}/?empcode=${user.empCode}');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: user.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return WagesModel.fromJson(jsonDecode(data['response']));
+      } else {
+        throw Exception('Failed to add new salary: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> submitWages(WagesModel wages, {String action = 'Modify'}) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.wagesSubmit}');
+    
+    final body = wages.toJson();
+    body['Actions'] = action;
+    body['EmpCode'] = user.empCode;
+    body['EditId'] = user.empCode;
+
+    try {
+      final response = await http.post(
+        url,
+        headers: user.toHeaders(),
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return jsonDecode(data['response']);
+      } else {
+        throw Exception('Failed to submit wages: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+}

@@ -1,0 +1,45 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../core/api_config.dart';
+import '../models/user_model.dart';
+
+class AuthService {
+  static User? _currentUser;
+  static User? get currentUser => _currentUser;
+
+  Future<User?> login(String username, String password) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.login}');
+    
+    try {
+      final response = await http.post(
+        url,
+        body: jsonEncode({
+          "userName": username,
+          "password": password,
+          "Module": ""
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final responseData = jsonDecode(data['response']);
+        
+        if (responseData['success'] == "OK") {
+          _currentUser = User.fromJson(responseData);
+          return _currentUser;
+        } else {
+          throw Exception(responseData['error'] ?? 'Login failed');
+        }
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  void logout() {
+    _currentUser = null;
+  }
+}
