@@ -13,7 +13,7 @@ class AttendanceScreen extends StatefulWidget {
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
   final AttendanceService _attendanceService = AttendanceService();
-  bool _isLoading = true;
+  bool _isLoading = false;
   String? _error;
   AttendanceHistoryResponse? _historyResponse;
   
@@ -35,9 +35,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           _toDate = DateFormat('dd-MM-yyyy').parse(dates['toDate']!);
         });
       }
-      _loadAttendance();
     } catch (e) {
-      _loadAttendance();
+      // Use default dates if API fails
     }
   }
 
@@ -63,10 +62,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-  Future<void> _selectDateRange(BuildContext context) async {
-    final DateTimeRange? picked = await showDateRangePicker(
+  Future<void> _selectDate(BuildContext context, bool isFromDate) async {
+    final DateTime? picked = await showDatePicker(
       context: context,
-      initialDateRange: DateTimeRange(start: _fromDate, end: _toDate),
+      initialDate: isFromDate ? _fromDate : _toDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
       builder: (context, child) {
@@ -85,10 +84,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     if (picked != null) {
       setState(() {
-        _fromDate = picked.start;
-        _toDate = picked.end;
+        if (isFromDate) {
+          _fromDate = picked;
+        } else {
+          _toDate = picked;
+        }
       });
-      _loadAttendance();
     }
   }
 
@@ -97,244 +98,429 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Attendance History', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: const Text(
+          'Attendance History',
+          style: TextStyle(color: Colors.white, fontSize: 18),
+        ),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.date_range),
-            onPressed: () => _selectDateRange(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadAttendance,
-          ),
-        ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('Error: $_error', style: const TextStyle(color: Colors.red)),
-                      const SizedBox(height: 16),
-                      ElevatedButton(onPressed: _loadAttendance, child: const Text('Retry')),
-                    ],
-                  ),
-                )
-              : Column(
-                  children: [
-                    _buildDateRangeHeader(),
-                    Expanded(
-                      child: RefreshIndicator(
-                        onRefresh: _loadAttendance,
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          child: Column(
-                            children: [
-                              _buildSummarySection(),
-                              _buildLogsList(),
-                            ],
-                          ),
-                        ),
-                      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // White card container
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-    );
-  }
-
-  Widget _buildDateRangeHeader() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      color: Colors.white,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.calendar_today, size: 16, color: AppColors.primary),
-          const SizedBox(width: 8),
-          Text(
-            '${DateFormat('dd MMM yyyy').format(_fromDate)} - ${DateFormat('dd MMM yyyy').format(_toDate)}',
-            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummarySection() {
-    if (_historyResponse == null) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      margin: const EdgeInsets.all(12),
-      padding: const EdgeInsets.all(16),
-      decoration: AppStyles.modernCardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Summary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              if (_historyResponse!.totalDays > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Total Days: ${_historyResponse!.totalDays}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 13),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    const Text(
+                      'Attendance History',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // From Date Picker
+                    _buildDatePicker(
+                      context,
+                      'From Date',
+                      _fromDate,
+                      true,
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // To Date Picker
+                    _buildDatePicker(
+                      context,
+                      'To Date',
+                      _toDate,
+                      false,
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Search Button
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: SizedBox(
+                        width: 60,
+                        height: 44,
+                        child: ElevatedButton(
+                          onPressed: _loadAttendance,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFE53935),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: EdgeInsets.zero,
+                            elevation: 0,
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.search,
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Table Header
+                    _buildTableHeader(),
+                    const SizedBox(height: 12),
+                    
+                    // Attendance Records Table
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'Error: $_error',
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      )
+                    else if (_historyResponse != null && 
+                             _historyResponse!.attendanceRecords.isNotEmpty)
+                      ..._buildAttendanceRows()
+                    else if (!_isLoading)
+                      const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(
+                          child: Text(
+                            'No records found. Click search to load data.',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Summary Section
+                    if (_historyResponse != null) ...[
+                      _buildSummaryTable('Status', _historyResponse!.summaryByStatus),
+                      const SizedBox(height: 16),
+                      _buildSummaryTable('Status Type', _historyResponse!.summaryByType),
+                    ],
+                  ],
                 ),
+              ),
             ],
           ),
-          const Divider(height: 24),
-          if (_historyResponse!.summaryByStatus.isNotEmpty) ...[
-            const Text('By Status', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _historyResponse!.summaryByStatus.map((s) => _buildSummaryChip(s)).toList(),
-            ),
-          ],
-          if (_historyResponse!.summaryByType.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const Text('By Type', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _historyResponse!.summaryByType.map((s) => _buildSummaryChip(s)).toList(),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildSummaryChip(AttendanceSummary s) {
-    final color = _getStatusColor(s.status);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+  Widget _buildDatePicker(BuildContext context, String label, DateTime date, bool isFromDate) {
+    return InkWell(
+      onTap: () => _selectDate(context, isFromDate),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.calendar_today,
+              size: 18,
+              color: Colors.grey.shade600,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              DateFormat('dd-MM-yyyy').format(date),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    );
+  }
+
+  Widget _buildTableHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: const Row(
         children: [
-          Text(s.status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
-          const SizedBox(width: 6),
-          Text(
-            s.count % 1 == 0 ? s.count.toInt().toString() : s.count.toString(),
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color.withValues(alpha: 0.8)),
+          Expanded(
+            flex: 2,
+            child: Text(
+              'DATE',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              'STATUS',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'IN',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'LOUT',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'LIN',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'OUT',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Colors.black87,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLogsList() {
-    if (_historyResponse == null || _historyResponse!.attendanceRecords.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32.0),
-          child: Text('No attendance records found for this period.'),
+  List<Widget> _buildAttendanceRows() {
+    return _historyResponse!.attendanceRecords.map((record) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Colors.grey.shade200),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Text(
+                record.date,
+                style: const TextStyle(fontSize: 12, color: Colors.black87),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                record.status,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _getStatusColor(record.status),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                record.checkIn.isEmpty ? '--' : record.checkIn,
+                style: const TextStyle(fontSize: 11, color: Colors.black87),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                record.lunchOut.isEmpty ? '--' : record.lunchOut,
+                style: const TextStyle(fontSize: 11, color: Colors.black87),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                record.lunchIn.isEmpty ? '--' : record.lunchIn,
+                style: const TextStyle(fontSize: 11, color: Colors.black87),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                record.checkOut.isEmpty ? '--' : record.checkOut,
+                style: const TextStyle(fontSize: 11, color: Colors.black87),
+              ),
+            ),
+          ],
         ),
       );
-    }
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _historyResponse!.attendanceRecords.length,
-      itemBuilder: (context, index) {
-        final record = _historyResponse!.attendanceRecords[index];
-        return _buildAttendanceCard(record);
-      },
-    );
+    }).toList();
   }
 
-  Widget _buildAttendanceCard(AttendanceRecord record) {
-    final statusColor = _getStatusColor(record.status);
-    
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: AppStyles.modernCardDecoration,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+  Widget _buildSummaryTable(String title, List<AttendanceSummary> summaries) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Table Header
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(6),
+              topRight: Radius.circular(6),
+            ),
+          ),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Status',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 100),
+              Expanded(
+                child: Text(
+                  'Days',
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Summary Rows
+        ...summaries.map((summary) {
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.05),
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12)),
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade200),
+              ),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(record.date, style: const TextStyle(fontWeight: FontWeight.bold)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+                Expanded(
                   child: Text(
-                    record.status,
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    summary.status,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 100),
+                Expanded(
+                  child: Text(
+                    summary.count % 1 == 0 
+                        ? summary.count.toInt().toString() 
+                        : summary.count.toString(),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildTimeColumn('Punch In', record.checkIn, Icons.login, Colors.green),
-                _buildTimeColumn('Punch Out', record.checkOut, Icons.logout, Colors.red),
-              ],
+          );
+        }).toList(),
+        
+        // Total Row
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(6),
+              bottomRight: Radius.circular(6),
             ),
           ),
-          if (record.lunchIn.isNotEmpty || record.lunchOut.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildTimeColumn('Lunch Out', record.lunchOut, Icons.restaurant, Colors.orange),
-                  _buildTimeColumn('Lunch In', record.lunchIn, Icons.restaurant_menu, Colors.blue),
-                ],
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Total',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.black87,
+                  ),
+                ),
               ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeColumn(String label, String time, IconData icon, Color color) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 4),
-            Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          time.isEmpty ? '--:--' : time,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              const SizedBox(width: 100),
+              Expanded(
+                child: Text(
+                  summaries.fold<double>(0, (sum, item) => sum + item.count)
+                      .toInt()
+                      .toString(),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
