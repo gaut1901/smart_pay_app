@@ -64,11 +64,11 @@ class CompOffService {
     }
   }
 
-  Future<Map<String, dynamic>> getCompOffLookup() async {
+  Future<Map<String, dynamic>> getCompOffLookup({String action = 'Create'}) async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
 
-    final url = Uri.parse('${ApiConfig.baseUrl}api/emplgreq/clear/?action=Create');
+    final url = Uri.parse('${ApiConfig.baseUrl}api/emplgreq/clear/?action=$action');
     
     try {
       final response = await http.get(
@@ -87,6 +87,29 @@ class CompOffService {
     }
   }
 
+  Future<Map<String, dynamic>> getCompOffDetails(String id, String action) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}api/emplgreq/display/?id=$id&action=$action');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: user.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return jsonDecode(data['response']);
+      } else {
+        throw Exception('Failed to load compensation details: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> submitCompOffRequest({
     required String sDate,
     required String remarks,
@@ -94,6 +117,7 @@ class CompOffService {
     required String lrName,
     String actions = "Add",
     String editId = "",
+    String app = "-",
   }) async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
@@ -105,7 +129,7 @@ class CompOffService {
       "Remarks": remarks,
       "Status": status,
       "LRName": lrName,
-      "App": "-",
+      "App": app,
       "Actions": actions,
       "EditId": editId
     };
@@ -120,7 +144,7 @@ class CompOffService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final responseData = jsonDecode(data['response']);
-        if (responseData['JSONResult'] != 0) {
+        if (responseData['JSONResult'].toString() != '0') {
           throw Exception(responseData['error'] ?? 'Failed to submit compensation request');
         }
       } else {

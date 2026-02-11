@@ -51,6 +51,11 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   PlatformFile? _selectedFile;
   bool _isUploadingFile = false;
 
+  // Actions State
+  String _currentAction = 'Create'; // Create, Modify, Revise, View
+  String? _editId;
+  Map<String, dynamic>? _editDetails;
+
   // Search
   final TextEditingController _searchController = TextEditingController();
   List<LeaveBalance> _filteredBalances = [];
@@ -98,11 +103,13 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
 
 
 
-  void _loadData() {
-    _fetchHistory();
-    _fetchBalance(); // Fetch current for Apply Leave
-    _fetchPeriodBalance(); // Fetch period for Leave Balance tab
-    _fetchHeaders();
+  Future<void> _loadData() async {
+    await Future.wait([
+      _fetchHistory(),
+      _fetchBalance(), // Fetch current for Apply Leave
+      _fetchPeriodBalance(), // Fetch period for Leave Balance tab
+      _fetchHeaders(),
+    ]);
   }
 
 
@@ -328,19 +335,19 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
         days: _calculateDays(),
         filePath: _mcFilePath ?? "",
         mcReq: _mcReq,
+        actions: _currentAction,
+        editId: _editId ?? '',
+        revise: _currentAction == 'Revise',
+        oldDetails: _editDetails,
       );
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Leave request submitted successfully')),
+          SnackBar(content: Text('Leave request ${_currentAction == 'Create' ? 'submitted' : 'updated'} successfully')),
         );
-        _remarksController.clear();
-        setState(() {
-          _mcFilePath = null;
-          _selectedFile = null;
-        });
-        _loadData();
-        _tabController.animateTo(1);
+        _resetForm();
+        await _loadData();
+        _tabController.animateTo(2); // Back to History
       }
     } catch (e) {
       if (mounted) {
@@ -590,23 +597,68 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
           const SizedBox(height: 15),
           _buildTextField('Remarks', 'Enter remarks for leave', _remarksController, maxLines: 3),
           const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _isSubmitting ? null : _submitLeave,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _submitLeave,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _currentAction == 'Create' ? AppColors.primary : Colors.orange,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: _isSubmitting 
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Text(_currentAction == 'Create' ? 'Submit Application' : 'Update Application', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                ),
               ),
-              child: _isSubmitting 
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Text('Submit Application', style: TextStyle(color: Colors.white, fontSize: 16)),
-            ),
+              if (_currentAction != 'Create') ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: _resetForm,
+                    icon: const Icon(Icons.cancel, size: 20),
+                    label: const Text('Cancel Edit', style: TextStyle(fontSize: 15)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),
     );
+  }
+
+  void _resetForm() {
+    setState(() {
+      _currentAction = 'Create';
+      _editId = null;
+      _editDetails = null;
+      _remarksController.clear();
+      _mcFilePath = null;
+      _selectedFile = null;
+      _startDate = DateTime.now();
+      _endDate = DateTime.now();
+      // Reset dropdowns if lookup data is available
+      if (_lookupData != null) {
+        final dtStatus = _lookupData!['dtStatus'] as List?;
+        if (dtStatus != null && dtStatus.isNotEmpty) {
+          _selectedLeaveType = dtStatus[0]['Status'];
+        }
+        final dtLR = _lookupData!['dtLR'] as List?;
+        if (dtLR != null && dtLR.isNotEmpty) {
+          _selectedLeaveReason = dtLR[0]['LRName'];
+        }
+      }
+    });
   }
 
   Widget _buildDropdownField(String label, List<String> items, String? value, Function(String?) onChanged) {
@@ -713,104 +765,328 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
       );
     }
 
-    if (_history.isEmpty) {
-      return const Center(child: Text('No leave history found'));
-    }
-
     return RefreshIndicator(
       onRefresh: () async => _fetchHistory(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _history.length,
-        itemBuilder: (context, index) {
-          return _buildHistoryItem(_history[index]);
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text('Leave History', 
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+              ),
+            ),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white, 
+                borderRadius: BorderRadius.circular(8), 
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTableActionsRow(),
+                  const SizedBox(height: 12),
+                  if (_history.isEmpty)
+                    const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No leave history found')))
+                  else
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F1F1)),
+                        columns: const [
+                          DataColumn(label: Text('TKT.NO', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('EMP NAME', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('REQ.DATE', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('FROM DATE', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('TO DATE', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('STATUS', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('REASON', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('APP', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('APP.BY', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('APP.ON', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('APP.REMARKS', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('R.APP', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('R.APP.BY', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('R.APP.ON', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('R.APP.REMARKS', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('ACTIONS', style: TextStyle(fontWeight: FontWeight.bold))),
+                        ],
+                        rows: _history.map((item) {
+                          return DataRow(cells: [
+                            DataCell(Text(item.ticketNo)),
+                            DataCell(Text(item.empName)),
+                            DataCell(Text(item.sDate)),
+                            DataCell(Text(item.fDate)),
+                            DataCell(Text(item.tDate)),
+                            DataCell(Text(item.status)),
+                            DataCell(Text(item.remarks)),
+                            DataCell(Text(item.app)),
+                            DataCell(Text(item.appBy)),
+                            DataCell(Text(item.appOn)),
+                            DataCell(Text(item.appRemarks)),
+                            DataCell(Text(item.app1)),
+                            DataCell(Text(item.appBy1)),
+                            DataCell(Text(item.appOn1)),
+                            DataCell(Text(item.appRemarks1)),
+                            DataCell(_buildActions(item)),
+                          ]);
+                        }).toList(),
+                      ),
+                    ),
+                  const Divider(),
+                  _buildPaginationFooter(_history.length),
+                  Container(height: 3, width: 80, color: Colors.grey.shade300)
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActions(LeaveRequest item) {
+    bool canEdit = !item.cancel;
+    // Matching Angular logic: row.App=="-" ? 'Modify' : 'Revise'
+    String editLabel = item.app == "-" ? "Modify" : "Revise";
+    String deleteLabel = item.app == "-" ? "Delete" : "Cancel";
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.visibility, color: Colors.blue, size: 18),
+          tooltip: 'View',
+          onPressed: () => _handleAction(item, 'View'),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+        ),
+        if (canEdit) ...[
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.orange, size: 18),
+            tooltip: editLabel,
+            onPressed: () => _handleAction(item, editLabel),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+            tooltip: deleteLabel,
+            onPressed: () => _handleAction(item, deleteLabel),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _handleAction(LeaveRequest item, String action) async {
+    if (action == 'View') {
+      _showViewDialog(item);
+    } else if (action == 'Modify' || action == 'Revise') {
+      _loadEditData(item, action);
+    } else if (action == 'Delete' || action == 'Cancel') {
+      _confirmDelete(item, action);
+    }
+  }
+
+  Future<void> _loadEditData(LeaveRequest item, String action) async {
+    setState(() => _isLoadingHistory = true);
+    try {
+      final details = await _leaveService.getLeaveRequestDetails(item.id, action);
+      setState(() {
+        _currentAction = action;
+        _editId = item.id;
+        _editDetails = details;
+        
+        // Populate form
+        try {
+          final dateFormat = DateFormat('dd-MM-yyyy');
+          _startDate = dateFormat.parse(details['FromDate']);
+          _endDate = dateFormat.parse(details['ToDate']);
+        } catch (e) {
+          debugPrint('Date parsing error: $e');
+        }
+        
+        _selectedLeaveType = details['Status'];
+        _selectedLeaveReason = details['LRName'];
+        _selectedFromPortion = details['FText'] ?? 'Full Day';
+        _selectedToPortion = details['TText'] ?? 'Full Day';
+        _remarksController.text = details['Remarks'] ?? '';
+        _mcFilePath = details['FilePath'] == "-" ? null : details['FilePath'];
+        _mcReq = details['MCReq'] ?? false;
+        
+        _isLoadingHistory = false;
+        _tabController.animateTo(1); // Switch to Apply Leave tab
+      });
+    } catch (e) {
+      setState(() => _isLoadingHistory = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading details: $e')));
+    }
+  }
+
+  void _showViewDialog(LeaveRequest item) async {
+    showDialog(
+      context: context,
+      builder: (context) => FutureBuilder<Map<String, dynamic>>(
+        future: _leaveService.getLeaveRequestDetails(item.id, 'View'),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return AlertDialog(
+              title: const Text('Error'),
+              content: Text(snapshot.error.toString()),
+              actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+            );
+          }
+          
+          final d = snapshot.data!;
+          return AlertDialog(
+            title: const Text('Leave Request Details'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildDetailItem('Ticket No', d['TicketNo'] ?? ''),
+                  _buildDetailItem('Employee', d['EmpName'] ?? ''),
+                  _buildDetailItem('Request Date', d['SDate'] ?? ''),
+                  _buildDetailItem('From Date', d['FromDate'] ?? ''),
+                  _buildDetailItem('To Date', d['ToDate'] ?? ''),
+                  _buildDetailItem('Days', (d['Days'] ?? 0).toString()),
+                  _buildDetailItem('Leave Type', d['Status'] ?? ''),
+                  _buildDetailItem('Reason', d['LRName'] ?? ''),
+                  _buildDetailItem('Remarks', d['Remarks'] ?? ''),
+                  _buildDetailItem('Status', d['App'] ?? ''),
+                  _buildDetailItem('Approved By', d['AppBy'] ?? ''),
+                  _buildDetailItem('Approved Date', d['AppOn'] ?? ''),
+                  _buildDetailItem('Approval Remarks', d['AppRemarks'] ?? ''),
+                ],
+              ),
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+          );
         },
       ),
     );
   }
 
-  Widget _buildHistoryItem(LeaveRequest item) {
-    final Color statusColor = item.status == 'Approved' 
-        ? Colors.green 
-        : (item.status == 'Rejected' ? Colors.red : Colors.orange);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: AppStyles.modernCardDecoration,
+  Widget _buildDetailItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.calendar_month, color: statusColor),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.remarks, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text('${item.fDate} - ${item.tDate}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  item.status, 
-                  style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold)
-                ),
-              ),
-            ],
+          SizedBox(width: 100, child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+          Expanded(child: Text(value.isEmpty ? '-' : value, style: const TextStyle(fontSize: 13))),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(LeaveRequest item, String action) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('$action Request'),
+        content: Text('Are you sure you want to $action this leave request?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('No')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              setState(() => _isLoadingHistory = true);
+              try {
+                // Fetch details first to get necessary fields and old values
+                final details = await _leaveService.getLeaveRequestDetails(item.id, 'Delete');
+                
+                await _leaveService.submitLeaveRequest(
+                  sDate: details['SDate'] ?? item.sDate,
+                  fDate: details['FromDate'],
+                  tDate: details['ToDate'],
+                  remarks: details['Remarks'] ?? "",
+                  status: details['Status'],
+                  lrName: details['LRName'],
+                  fText: details['FText'] ?? "Full Day",
+                  tText: details['TText'] ?? "Full Day",
+                  days: double.tryParse(details['Days'].toString()) ?? 0,
+                  actions: action,
+                  editId: item.id,
+                  oldDetails: details,
+                );
+                await _loadData();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Request $action successfully')));
+                }
+              } catch (e) {
+                setState(() => _isLoadingHistory = false);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Yes', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
   Widget _buildLeaveBalanceTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: AppStyles.modernCardDecoration,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Leave Balance', style: AppStyles.heading.copyWith(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 20),
-                _buildPeriodDropdown(),
-                const SizedBox(height: 16),
-                _buildDateSearchRow(),
-                const SizedBox(height: 20),
-                Center(
-                  child: Text('Leave Balance', style: TextStyle(
-                    fontSize: 16, 
-                    fontWeight: FontWeight.bold, 
-                    color: AppColors.textDark
-                  )),
-                ),
-                const SizedBox(height: 10),
-                const Divider(),
-                _buildBalanceTable(),
-                const Divider(),
-                _buildStatusDaysTable(),
-              ],
+    return RefreshIndicator(
+      onRefresh: () async => _loadData(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: AppStyles.modernCardDecoration,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Leave Balance', style: AppStyles.heading.copyWith(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  _buildPeriodDropdown(),
+                  const SizedBox(height: 16),
+                  _buildDateSearchRow(),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: Text('Leave Balance', style: TextStyle(
+                      fontSize: 16, 
+                      fontWeight: FontWeight.bold, 
+                      color: AppColors.textDark
+                    )),
+                  ),
+                  const SizedBox(height: 10),
+                  const Divider(),
+                  _buildBalanceTable(),
+                  const Divider(),
+                  _buildStatusDaysTable(),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1007,4 +1283,60 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   }
 
 
+  Widget _buildTableActionsRow() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('Row Per Page', style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+              child: const Row(
+                children: [
+                  Text('10', style: TextStyle(fontSize: 12)),
+                  Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.blue),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          height: 40,
+          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
+          child: const TextField(
+            decoration: InputDecoration(
+              hintText: 'Search',
+              hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              border: InputBorder.none,
+              suffixIcon: Icon(Icons.search, size: 20, color: Colors.grey),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaginationFooter(int count) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Showing 0 to $count of $count entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          const Row(
+            children: [
+              Icon(Icons.chevron_left, color: Colors.grey),
+              SizedBox(width: 16),
+              Icon(Icons.chevron_right, color: Colors.grey),
+            ],
+          )
+        ],
+      ),
+    );
+  }
 }

@@ -11,6 +11,11 @@ class LeaveRequest {
   final String appBy;
   final String appOn;
   final String appRemarks;
+  final String app1;
+  final String appBy1;
+  final String appOn1;
+  final String appRemarks1;
+  final bool cancel;
 
   LeaveRequest({
     required this.id,
@@ -25,6 +30,11 @@ class LeaveRequest {
     required this.appBy,
     required this.appOn,
     required this.appRemarks,
+    required this.app1,
+    required this.appBy1,
+    required this.appOn1,
+    required this.appRemarks1,
+    required this.cancel,
   });
 
   factory LeaveRequest.fromJson(Map<String, dynamic> json) {
@@ -41,6 +51,11 @@ class LeaveRequest {
       appBy: json['AppBy']?.toString() ?? '',
       appOn: json['AppOn']?.toString() ?? '',
       appRemarks: json['AppRemarks']?.toString() ?? '',
+      app1: json['app1']?.toString() ?? '',
+      appBy1: json['appby1']?.toString() ?? '',
+      appOn1: json['appon1']?.toString() ?? '',
+      appRemarks1: json['appremarks1']?.toString() ?? '',
+      cancel: json['Cancel'] == true || json['Cancel'] == 'true',
     );
   }
 }

@@ -28,12 +28,52 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
   bool _isSubmitting = false;
   String? _empName;
 
+  // Actions State
+  String _currentAction = 'Create'; // Create, Modify, Revise, View, Delete, Cancel
+  String? _editId;
+  Map<String, dynamic>? _editDetails;
+
+  // Table & Search State
+  final TextEditingController _searchController = TextEditingController();
+  int _rowsPerPage = 10;
+  int _currentPage = 0;
+  List<dynamic> _filteredHistory = [];
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadData();
     _fetchLookup();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      if (_searchController.text.isEmpty) {
+        _filteredHistory = _history;
+      } else {
+        _filteredHistory = _history.where((request) => 
+          (request['TicketNo']?.toString().toLowerCase().contains(_searchController.text.toLowerCase()) ?? false) ||
+          (request['EmpName']?.toString().toLowerCase().contains(_searchController.text.toLowerCase()) ?? false)
+        ).toList();
+      }
+      _currentPage = 0;
+    });
+  }
+
+  void _resetForm() {
+    setState(() {
+      _currentAction = 'Create';
+      _editId = null;
+      _editDetails = null;
+      _selectedDate = DateTime.now();
+      _selectedType = 'PERMISSION';
+      _selectedSession = 'MORNING';
+      _minsController.text = '0';
+      _remarksController.clear();
+    });
+    _fetchLookup(); // Re-fetch to get default date/mins if any
   }
 
   void _loadData() {
@@ -70,7 +110,9 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
       final history = await _permissionService.getPermissionHistory();
       setState(() {
         _history = history;
+        _filteredHistory = history;
         _isLoadingHistory = false;
+        _onSearchChanged();
       });
     } catch (e) {
       setState(() {
@@ -97,20 +139,26 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
         "Remarks": _remarksController.text.trim(),
         "PerMins": int.tryParse(_minsController.text) ?? 0,
         "EmpName": _empName ?? "",
-        "Actions": "Add",
-        "EditId": "",
-        "App": "-",
-        "App1": "-",
+        "Actions": _currentAction,
+        "EditId": _editId ?? "",
+        "App": _currentAction == 'Create' ? '-' : (_editDetails?['App'] ?? '-'),
+        "App1": _currentAction == 'Create' ? '-' : (_editDetails?['App1'] ?? '-'),
+        
+        // Include old values for update tracking as per legacy ngEmpPermission.js
+        "oldSDate": _editDetails?['oldSDate'] ?? _editDetails?['SDate'] ?? "",
+        "oldPType": _editDetails?['oldPType'] ?? _editDetails?['PType'] ?? "",
+        "oldSession": _editDetails?['oldSession'] ?? _editDetails?['Session'] ?? "",
+        "oldRemarks": _editDetails?['oldRemarks'] ?? _editDetails?['Remarks'] ?? "",
+        "oldPerMins": _editDetails?['oldPerMins'] ?? _editDetails?['PMin'] ?? 0,
       };
 
       await _permissionService.submitPermissionRequest(postData);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Permission request submitted successfully')),
+          SnackBar(content: Text('Permission request ${_currentAction == 'Create' ? 'submitted' : 'updated'} successfully')),
         );
-        _remarksController.clear();
-        _minsController.text = '0';
+        _resetForm();
         _fetchHistory();
         _tabController.animateTo(1);
       }
@@ -125,6 +173,158 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
         setState(() => _isSubmitting = false);
       }
     }
+  }
+
+  void _handleAction(dynamic item, String action) async {
+    if (action == 'View') {
+      _showViewDialog(item);
+    } else if (action == 'Modify' || action == 'Revise') {
+      _loadEditData(item, action);
+    } else if (action == 'Delete' || action == 'Cancel') {
+      _confirmDelete(item, action);
+    }
+  }
+
+  Future<void> _loadEditData(dynamic item, String action) async {
+    setState(() => _isLoadingHistory = true);
+    try {
+      final details = await _permissionService.getPermissionDetails(item['id'].toString(), action);
+      setState(() {
+        _currentAction = action;
+        _editId = item['id'].toString();
+        _editDetails = details;
+        
+        // Populate form
+        try {
+          _selectedDate = DateFormat('dd-MM-yyyy').parse(details['SDate']);
+        } catch (_) {}
+        
+        _selectedType = details['PType'] ?? 'PERMISSION';
+        _selectedSession = details['Session'] ?? 'MORNING';
+        _minsController.text = (details['PerMins'] ?? 0).toString();
+        _remarksController.text = details['Remarks'] ?? '';
+        
+        _isLoadingHistory = false;
+        _tabController.animateTo(0); // Switch to Apply tab
+      });
+    } catch (e) {
+      setState(() => _isLoadingHistory = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading details: $e')));
+    }
+  }
+
+  void _showViewDialog(dynamic item) async {
+    showDialog(
+      context: context,
+      builder: (context) => FutureBuilder<Map<String, dynamic>>(
+        future: _permissionService.getPermissionDetails(item['id'].toString(), 'View'),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return AlertDialog(
+              title: const Text('Error'),
+              content: Text(snapshot.error.toString()),
+              actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+            );
+          }
+          
+          final d = snapshot.data!;
+          return AlertDialog(
+            title: const Text('Permission Request Details'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildDetailItem('Ticket No', d['TicketNo'] ?? ''),
+                  _buildDetailItem('Employee', d['EmpName'] ?? ''),
+                  _buildDetailItem('Date', d['SDate'] ?? ''),
+                  _buildDetailItem('Type', d['PType'] ?? ''),
+                  _buildDetailItem('Session', d['Session'] ?? ''),
+                  _buildDetailItem('Minutes', (d['PerMins'] ?? 0).toString()),
+                  _buildDetailItem('Remarks', d['Remarks'] ?? ''),
+                  _buildDetailItem('Status', d['App'] ?? ''),
+                  _buildDetailItem('Approved By', d['AppBy'] ?? ''),
+                  _buildDetailItem('Approved On', d['AppOn'] ?? ''),
+                ],
+              ),
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDetailItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 90, child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+          Expanded(child: Text(value.isEmpty ? '-' : value, style: const TextStyle(fontSize: 13))),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(dynamic item, String action) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('$action Request'),
+        content: Text('Are you sure you want to $action this permission request?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('No')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              setState(() => _isLoadingHistory = true);
+              try {
+                final dateFormat = DateFormat('dd-MM-yyyy');
+                // Fetch details first to get necessary fields and old values
+                final details = await _permissionService.getPermissionDetails(item['id'].toString(), 'Delete');
+                
+                final postData = {
+                  "SDate": details['SDate'],
+                  "PType": details['PType'],
+                  "Session": details['Session'],
+                  "Remarks": details['Remarks'] ?? "",
+                  "PerMins": details['PerMins'] ?? 0,
+                  "EmpName": details['EmpName'] ?? "",
+                  "Actions": action,
+                  "EditId": item['id'].toString(),
+                  "App": details['App'] ?? "-",
+                  "App1": details['App1'] ?? "-",
+                  
+                  // Include old values as they might be checked
+                  "oldSDate": details['SDate'], // For delete, old is same as current
+                  "oldPType": details['PType'],
+                  "oldSession": details['Session'],
+                  "oldRemarks": details['Remarks'] ?? "",
+                  "oldPerMins": details['PerMins'] ?? 0,
+                };
+                await _permissionService.submitPermissionRequest(postData);
+                _fetchHistory();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Request $action successfully')));
+                }
+              } catch (e) {
+                setState(() => _isLoadingHistory = false);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Yes', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -178,7 +378,10 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('New Permission Request', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(
+                      _currentAction == 'Create' ? 'New Permission Request' : 'Update Permission Request', 
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+                    ),
                 const SizedBox(height: 20),
                 _buildDatePickerField('Date', _selectedDate, (date) => setState(() => _selectedDate = date)),
                 const SizedBox(height: 15),
@@ -190,19 +393,43 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
                 const SizedBox(height: 15),
                 _buildTextField('Remarks', 'Enter remarks', _remarksController, maxLines: 3),
                 const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submitRequest,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submitRequest,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _currentAction == 'Create' ? AppColors.primary : Colors.orange,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: _isSubmitting 
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text(
+                              _currentAction == 'Create' ? 'Submit Request' : 'Update Application', 
+                              style: const TextStyle(color: Colors.white, fontSize: 16)
+                            ),
+                      ),
                     ),
-                    child: _isSubmitting 
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Submit Request', style: TextStyle(color: Colors.white, fontSize: 16)),
-                  ),
+                    if (_currentAction != 'Create') ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          onPressed: _resetForm,
+                          icon: const Icon(Icons.cancel, size: 20),
+                          label: const Text('Cancel Edit', style: TextStyle(fontSize: 15)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -215,17 +442,175 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
   Widget _buildHistoryTab() {
     if (_isLoadingHistory) return const Center(child: CircularProgressIndicator());
     if (_historyError != null) return Center(child: Text(_historyError!, style: const TextStyle(color: Colors.red)));
-    if (_history.isEmpty) return const Center(child: Text('No history found'));
 
     return RefreshIndicator(
       onRefresh: () async => _fetchHistory(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _history.length,
-        itemBuilder: (context, index) {
-          final item = _history[index];
-          return _buildHistoryItem(item);
-        },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text('Permission History', 
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+              ),
+            ),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white, 
+                borderRadius: BorderRadius.circular(8), 
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTableActionsRow(),
+                  const SizedBox(height: 12),
+                  if (_filteredHistory.isEmpty)
+                    const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No history found')))
+                  else
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowColor: MaterialStateProperty.all(const Color(0xFFF1F1F1)),
+                        columns: const [
+                          DataColumn(label: Text('TICKET NO', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('EMP NAME', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('DATE', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('TYPE', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('SESSION', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('MINS', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('STATUS', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('APP.BY', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('ACTIONS', style: TextStyle(fontWeight: FontWeight.bold))),
+                        ],
+                        rows: _filteredHistory.map((item) {
+                          return DataRow(cells: [
+                            DataCell(Text(item['TicketNo'] ?? '')),
+                            DataCell(Text(item['EmpName'] ?? '')),
+                            DataCell(Text(item['SDate'] ?? '')),
+                            DataCell(Text(item['PType'] ?? '')),
+                            DataCell(Text(item['Session'] ?? '')),
+                            DataCell(Text((item['PMin'] ?? 0).toString())),
+                            DataCell(Text(item['App'] ?? '')),
+                            DataCell(Text(item['AppBy'] ?? '')),
+                            DataCell(_buildActions(item)),
+                          ]);
+                        }).toList(),
+                      ),
+                    ),
+                  const Divider(),
+                  _buildPaginationFooter(_filteredHistory.length),
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActions(dynamic item) {
+    bool canEdit = (item['App'] == "-" || item['App'] == "Pending");
+    
+    // In legacy ngEmpPermission.js, if App is Approved, it calls 'Revise' which is essentially an edit
+    // But for Delete, if App is Approved, it calls 'Cancel'.
+    
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.visibility, color: Colors.blue, size: 18),
+          tooltip: 'View',
+          onPressed: () => _handleAction(item, 'View'),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.edit, color: Colors.orange, size: 18),
+          tooltip: canEdit ? 'Modify' : 'Revise',
+          onPressed: () => _handleAction(item, canEdit ? 'Modify' : 'Revise'),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+          tooltip: canEdit ? 'Delete' : 'Cancel',
+          onPressed: () => _handleAction(item, canEdit ? 'Delete' : 'Cancel'),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTableActionsRow() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('Row Per Page', style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+              child: Row(
+                children: [
+                  Text('$_rowsPerPage', style: const TextStyle(fontSize: 12)),
+                  const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.blue),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          height: 40,
+          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
+          child: TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              hintText: 'Search by Ticket No or Name',
+              hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              border: InputBorder.none,
+              suffixIcon: Icon(Icons.search, size: 20, color: Colors.grey),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaginationFooter(int count) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Showing 1 to $count of $count entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          const Row(
+            children: [
+              Icon(Icons.chevron_left, color: Colors.grey),
+              SizedBox(width: 16),
+              Icon(Icons.chevron_right, color: Colors.grey),
+            ],
+          )
+        ],
       ),
     );
   }

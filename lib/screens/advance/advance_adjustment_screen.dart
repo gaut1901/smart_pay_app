@@ -35,11 +35,52 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
   final TextEditingController _remarksController = TextEditingController();
   bool _isSubmitting = false;
 
+  // Actions State
+  String _currentAction = 'Create'; // Create, Modify, Delete, View
+  String? _editId;
+  Map<String, dynamic>? _editDetails;
+
+  // Table & Search State
+  final TextEditingController _searchController = TextEditingController();
+  int _rowsPerPage = 10;
+  List<AdvanceAdjustmentRequest> _filteredHistory = [];
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadData();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      if (_searchController.text.isEmpty) {
+        _filteredHistory = _history;
+      } else {
+        _filteredHistory = _history.where((request) => 
+          (request.ticketNo.toLowerCase().contains(_searchController.text.toLowerCase())) ||
+          (request.empName.toLowerCase().contains(_searchController.text.toLowerCase())) ||
+          (request.salaryName.toLowerCase().contains(_searchController.text.toLowerCase()))
+        ).toList();
+      }
+    });
+  }
+
+  void _resetForm() {
+    setState(() {
+      _currentAction = 'Create';
+      _editId = null;
+      _editDetails = null;
+      _selectedDate = DateTime.now();
+      _selectedDeduction = null;
+      _selectedSalaryMonth = null;
+      _selectedApprovalType = null;
+      _selectedAdvNo = null;
+      _adjAmountController.clear();
+      _remarksController.clear();
+    });
+    _fetchLookups();
   }
 
   Future<void> _loadData() async {
@@ -59,7 +100,9 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
       final history = await _advanceService.getAARHistory();
       setState(() {
         _history = history;
+        _filteredHistory = history;
         _isLoadingHistory = false;
+        _onSearchChanged();
       });
     } catch (e) {
       setState(() {
@@ -76,7 +119,13 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
       setState(() {
         _deductionTypes = lookupData['dtDed'] ?? [];
         _salaryMonths = lookupData['dtSalary'] ?? [];
-        _approvalTypes = lookupData['dtAARReason'] ?? [];
+        // Legacy code uses dtAAReason (missing R), handling both cases
+        _approvalTypes = lookupData['dtAARReason'] ?? lookupData['dtAAReason'] ?? [];
+        
+        // Debug keys
+        if (_deductionTypes.isNotEmpty) print('Ded keys: ${_deductionTypes.first.keys}');
+        if (_salaryMonths.isNotEmpty) print('Salary keys: ${_salaryMonths.first.keys}');
+        if (_approvalTypes.isNotEmpty) print('Approval keys: ${_approvalTypes.first.keys}');
         
         if (lookupData['ReqDate'] != null && lookupData['ReqDate'] != "") {
            try {
@@ -101,6 +150,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
       final advNos = await _advanceService.getAdvanceNos();
       setState(() {
         _advanceNos = advNos;
+        if (_advanceNos.isNotEmpty) print('AdvNo keys: ${_advanceNos.first.keys}');
       });
     } catch (e) {
       if (mounted) {
@@ -130,9 +180,13 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
     }
     
     final amount = double.tryParse(_adjAmountController.text) ?? 0;
-    if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid adjustment amount')));
-      return;
+    
+    // Only validate > 0 for Create or Modify
+    if (_currentAction != 'Delete' && _currentAction != 'Cancel') {
+      if (amount <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid adjustment amount')));
+        return;
+      }
     }
 
     setState(() => _isSubmitting = true);
@@ -147,24 +201,17 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
         "Remarks": _remarksController.text.trim(),
         "AdvNo": _selectedAdvNo,
         "AdjAmount": amount,
-        "Actions": "Add",
-        "EditId": ""
+        "Actions": _currentAction,
+        "EditId": _editId ?? "",
       };
 
       await _advanceService.submitAARRequest(postData);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Advance adjustment request submitted successfully')),
+          SnackBar(content: Text('Advance adjustment request ${_currentAction == 'Create' ? 'submitted' : 'updated'} successfully')),
         );
-        _adjAmountController.clear();
-        _remarksController.clear();
-        setState(() {
-          _selectedDeduction = null;
-          _selectedSalaryMonth = null;
-          _selectedApprovalType = null;
-          _selectedAdvNo = null;
-        });
+        _resetForm();
         _fetchHistory();
         _tabController.animateTo(1);
       }
@@ -179,6 +226,154 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
         setState(() => _isSubmitting = false);
       }
     }
+  }
+
+  void _handleAction(AdvanceAdjustmentRequest item, String action) async {
+    if (action == 'View') {
+      _showViewDialog(item);
+    } else if (action == 'Modify' || action == 'Revise') {
+      _loadEditData(item, action);
+    } else if (action == 'Delete' || action == 'Cancel') {
+      _confirmDelete(item, action);
+    }
+  }
+
+  Future<void> _loadEditData(AdvanceAdjustmentRequest item, String action) async {
+    setState(() => _isLoadingHistory = true);
+    try {
+      final details = await _advanceService.getAARDetails(item.id, action);
+      setState(() {
+        _currentAction = action;
+        _editId = item.id;
+        _editDetails = details;
+        
+        // Populate form
+        try {
+          _selectedDate = DateFormat('dd-MM-yyyy').parse(details['ReqDate']);
+        } catch (_) {}
+        
+        _selectedDeduction = details['DedName'];
+        _selectedSalaryMonth = details['SalaryMonth'];
+        _selectedApprovalType = details['AARReason'];
+        _selectedAdvNo = details['AdvNo'];
+        _adjAmountController.text = (details['AdjAmount'] ?? 0).toString();
+        _remarksController.text = details['Remarks'] ?? '';
+        
+        _isLoadingHistory = false;
+        _tabController.animateTo(0); // Switch to Apply tab
+      });
+    } catch (e) {
+      setState(() => _isLoadingHistory = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading details: $e')));
+    }
+  }
+
+  void _showViewDialog(AdvanceAdjustmentRequest item) async {
+    showDialog(
+      context: context,
+      builder: (context) => FutureBuilder<Map<String, dynamic>>(
+        future: _advanceService.getAARDetails(item.id, 'View'),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return AlertDialog(
+              title: const Text('Error'),
+              content: Text(snapshot.error.toString()),
+              actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+            );
+          }
+          
+          final d = snapshot.data!;
+          return AlertDialog(
+            title: const Text('Advance Adjustment Details'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildDetailItem('Ticket No', d['TicketNo'] ?? ''),
+                  _buildDetailItem('Employee', d['EmpName'] ?? ''),
+                  _buildDetailItem('Request Date', d['ReqDate'] ?? ''),
+                  _buildDetailItem('Deduction', d['DedName'] ?? ''),
+                  _buildDetailItem('Salary Month', d['SalaryMonth'] ?? ''),
+                  _buildDetailItem('Advance No', d['AdvNo'] ?? ''),
+                  _buildDetailItem('Reason', d['AARReason'] ?? ''),
+                  _buildDetailItem('Amount', (d['AdjAmount'] ?? 0).toString()),
+                  _buildDetailItem('Remarks', d['Remarks'] ?? ''),
+                  _buildDetailItem('Status', d['App'] ?? ''),
+                  _buildDetailItem('Approved By', d['AppBy'] ?? ''),
+                  _buildDetailItem('Approved On', d['AppOn'] ?? ''),
+                ],
+              ),
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDetailItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 90, child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+          Expanded(child: Text(value.isEmpty ? '-' : value, style: const TextStyle(fontSize: 13))),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(AdvanceAdjustmentRequest item, String action) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('$action Request'),
+        content: Text('Are you sure you want to $action this adjustment request?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('No')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              setState(() => _isLoadingHistory = true);
+              try {
+                final dateFormat = DateFormat('dd-MM-yyyy');
+                // Fetch details first to get necessary fields for delete payload
+                final details = await _advanceService.getAARDetails(item.id, 'Delete');
+                
+                final postData = {
+                  "ReqDate": details['ReqDate'],
+                  "DedName": details['DedName'], 
+                  "SalaryMonth": details['SalaryMonth'],
+                  "AARReason": details['AARReason'], 
+                  "Remarks": details['Remarks'] ?? "",
+                  "AdvNo": details['AdvNo'], 
+                  "AdjAmount": details['AdjAmount'],
+                  "Actions": action,
+                  "EditId": item.id,
+                };
+                await _advanceService.submitAARRequest(postData);
+                _fetchHistory();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Request $action successfully')));
+                }
+              } catch (e) {
+                setState(() => _isLoadingHistory = false);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Yes', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -232,7 +427,10 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('New Adjustment Request', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(
+                      _currentAction == 'Create' ? 'New Adjustment Request' : 'Update Adjustment Request', 
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+                    ),
                 const SizedBox(height: 20),
                 _buildDatePickerField('Request Date', _selectedDate, (date) => setState(() => _selectedDate = date)),
                 const SizedBox(height: 15),
@@ -245,21 +443,21 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
                 const SizedBox(height: 15),
                 _buildDropdownField(
                   'Salary Month', 
-                  _salaryMonths.map((e) => e['SalaryMonth']?.toString() ?? '').toList(), 
+                  _salaryMonths.map((e) => e['SalaryName']?.toString() ?? '').toList(), 
                   _selectedSalaryMonth, 
                   (val) => setState(() => _selectedSalaryMonth = val)
                 ),
                 const SizedBox(height: 15),
                 _buildDropdownField(
                   'Advance No', 
-                  _advanceNos.map((e) => e['AdvNo']?.toString() ?? '').toList(), 
+                  _advanceNos.map((e) => e['AdvId']?.toString() ?? '').toList(), 
                   _selectedAdvNo, 
                   (val) => setState(() => _selectedAdvNo = val)
                 ),
                 const SizedBox(height: 15),
                 _buildDropdownField(
                   'Approval Type', 
-                  _approvalTypes.map((e) => e['AARReason']?.toString() ?? '').toList(), 
+                  _approvalTypes.map((e) => e['AAReason']?.toString() ?? '').toList(), 
                   _selectedApprovalType, 
                   (val) => setState(() => _selectedApprovalType = val)
                 ),
@@ -268,19 +466,43 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
                 const SizedBox(height: 15),
                 _buildTextField('Remarks', 'Enter remarks', _remarksController, maxLines: 2),
                 const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submitRequest,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submitRequest,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _currentAction == 'Create' ? AppColors.primary : Colors.orange,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: _isSubmitting 
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text(
+                              _currentAction == 'Create' ? 'Submit Request' : 'Update Application', 
+                              style: const TextStyle(color: Colors.white, fontSize: 16)
+                            ),
+                      ),
                     ),
-                    child: _isSubmitting 
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Submit Request', style: TextStyle(color: Colors.white, fontSize: 16)),
-                  ),
+                    if (_currentAction != 'Create') ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          onPressed: _resetForm,
+                          icon: const Icon(Icons.cancel, size: 20),
+                          label: const Text('Cancel Edit', style: TextStyle(fontSize: 15)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -293,63 +515,174 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
   Widget _buildHistoryTab() {
     if (_isLoadingHistory) return const Center(child: CircularProgressIndicator());
     if (_historyError != null) return Center(child: Text(_historyError!, style: const TextStyle(color: Colors.red)));
-    if (_history.isEmpty) return const Center(child: Text('No history found'));
 
     return RefreshIndicator(
       onRefresh: () async => _fetchHistory(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _history.length,
-        itemBuilder: (context, index) {
-          final item = _history[index];
-          return _buildHistoryItem(item);
-        },
-      ),
-    );
-  }
-
-  Widget _buildHistoryItem(AdvanceAdjustmentRequest item) {
-    final status = item.app;
-    final Color statusColor = status == 'Approved' ? Colors.green : (status == 'Rejected' ? Colors.red : Colors.orange);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(item.reqDate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                  child: Text(status, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
-                ),
-              ],
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text('Advance Adjustment History', 
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+              ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(child: Text(item.salaryName, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w500))),
-                Text('₹${item.adjAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              ],
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white, 
+                borderRadius: BorderRadius.circular(8), 
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTableActionsRow(),
+                  const SizedBox(height: 12),
+                  if (_filteredHistory.isEmpty)
+                    const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No history found')))
+                  else
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowColor: MaterialStateProperty.all(const Color(0xFFF1F1F1)),
+                        columns: const [
+                          DataColumn(label: Text('TICKET NO', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('EMP NAME', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('REQ DATE', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('SALARY MONTH', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('AMOUNT', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('STATUS', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('APP.BY', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('ACTIONS', style: TextStyle(fontWeight: FontWeight.bold))),
+                        ],
+                        rows: _filteredHistory.map((item) {
+                          return DataRow(cells: [
+                            DataCell(Text(item.ticketNo)),
+                            DataCell(Text(item.empName)),
+                            DataCell(Text(item.reqDate)),
+                            DataCell(Text(item.salaryName)),
+                            DataCell(Text(item.adjAmount.toStringAsFixed(2))),
+                            DataCell(Text(item.app)),
+                            DataCell(Text(item.appBy)),
+                            DataCell(_buildActions(item)),
+                          ]);
+                        }).toList(),
+                      ),
+                    ),
+                  const Divider(),
+                  _buildPaginationFooter(_filteredHistory.length),
+                ],
+              ),
             ),
-            const SizedBox(height: 4),
-            Text('Ticket No: ${item.ticketNo}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-            if (item.appBy.isNotEmpty && item.appBy != "-") ...[
-              const SizedBox(height: 4),
-              Text('Approved By: ${item.appBy}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-            ],
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildActions(AdvanceAdjustmentRequest item) {
+    bool canEdit = (item.app == "-" || item.app == "Pending");
+    
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.visibility, color: Colors.blue, size: 18),
+          tooltip: 'View',
+          onPressed: () => _handleAction(item, 'View'),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.edit, color: Colors.orange, size: 18),
+          tooltip: canEdit ? 'Modify' : 'Revise',
+          onPressed: () => _handleAction(item, canEdit ? 'Modify' : 'Revise'),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+          tooltip: canEdit ? 'Delete' : 'Cancel',
+          onPressed: () => _handleAction(item, canEdit ? 'Delete' : 'Cancel'),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTableActionsRow() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('Row Per Page', style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+              child: Row(
+                children: [
+                  Text('$_rowsPerPage', style: const TextStyle(fontSize: 12)),
+                  const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.blue),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          height: 40,
+          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
+          child: TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              hintText: 'Search by Ticket No, Name or Salary Month',
+              hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              border: InputBorder.none,
+              suffixIcon: Icon(Icons.search, size: 20, color: Colors.grey),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaginationFooter(int count) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Showing 1 to $count of $count entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          const Row(
+            children: [
+              Icon(Icons.chevron_left, color: Colors.grey),
+              SizedBox(width: 16),
+              Icon(Icons.chevron_right, color: Colors.grey),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
 
   Widget _buildDatePickerField(String label, DateTime selectedDate, Function(DateTime) onSelect) {
     return Column(

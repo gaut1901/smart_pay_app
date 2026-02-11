@@ -79,6 +79,29 @@ class LeaveService {
     }
   }
 
+  Future<Map<String, dynamic>> getLeaveRequestDetails(String id, String action) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}api/emplreq/display/?id=$id&action=$action');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: user.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return jsonDecode(data['response']);
+      } else {
+        throw Exception('Failed to load leave details: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> statusChange({
     required String fDate,
     required String tDate,
@@ -153,7 +176,7 @@ class LeaveService {
   }
 
   Future<void> submitLeaveRequest({
-    required String sDate,
+    required String sDate, // Req date
     required String fDate,
     required String tDate,
     required String remarks,
@@ -164,6 +187,10 @@ class LeaveService {
     double days = 0,
     String filePath = "",
     bool mcReq = false,
+    String actions = "Add",
+    String editId = "",
+    bool revise = false,
+    Map<String, dynamic>? oldDetails,
   }) async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
@@ -180,22 +207,22 @@ class LeaveService {
       "FText": fText,
       "TText": tText,
       "Days": days,
-      "Revise": false,
+      "Revise": revise,
       "App": "-",
       "App1": "-",
-      "OldFromDate": "",
-      "OldToDate": "",
-      "OldRemarks": "",
-      "OldStatus": "",
-      "OldLRName": "",
-      "OldFText": "",
-      "OldTText": "",
+      "OldFromDate": oldDetails?['OldFromDate'] ?? oldDetails?['FromDate'] ?? "",
+      "OldToDate": oldDetails?['OldToDate'] ?? oldDetails?['ToDate'] ?? "",
+      "OldRemarks": oldDetails?['OldRemarks'] ?? oldDetails?['Remarks'] ?? "",
+      "OldStatus": oldDetails?['OldStatus'] ?? oldDetails?['Status'] ?? "",
+      "OldLRName": oldDetails?['OldLRName'] ?? oldDetails?['LRName'] ?? "",
+      "OldFText": oldDetails?['OldFText'] ?? oldDetails?['FText'] ?? "",
+      "OldTText": oldDetails?['OldTText'] ?? oldDetails?['TText'] ?? "",
       "FilePath": filePath,
       "MCReq": mcReq,
-      "OldDays": 0,
+      "OldDays": oldDetails?['OldDays'] ?? oldDetails?['Days'] ?? 0,
       "CoffText": "",
-      "Actions": "Add",
-      "EditId": ""
+      "Actions": actions,
+      "EditId": editId
     };
 
     try {
@@ -208,7 +235,7 @@ class LeaveService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final responseData = jsonDecode(data['response']);
-        if (responseData['JSONResult'] != 0) {
+        if (responseData['JSONResult'].toString() != '0') {
           throw Exception(responseData['error'] ?? 'Failed to submit leave request');
         }
       } else {

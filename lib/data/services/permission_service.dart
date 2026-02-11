@@ -28,11 +28,11 @@ class PermissionService {
     }
   }
 
-  Future<Map<String, dynamic>> getPermissionLookup() async {
+  Future<Map<String, dynamic>> getPermissionLookup({String action = 'Create'}) async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
 
-    final url = Uri.parse('${ApiConfig.baseUrl}api/empperreq/clear/?action=Create');
+    final url = Uri.parse('${ApiConfig.baseUrl}api/empperreq/clear/?action=$action');
     
     try {
       final response = await http.get(
@@ -45,6 +45,29 @@ class PermissionService {
         return jsonDecode(data['response']);
       } else {
         throw Exception('Failed to load lookup data: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getPermissionDetails(String id, String action) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}api/empperreq/display/?id=$id&action=$action');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: user.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return jsonDecode(data['response']);
+      } else {
+        throw Exception('Failed to load permission details: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
@@ -67,7 +90,7 @@ class PermissionService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final responseData = jsonDecode(data['response']);
-        if (responseData['JSONResult'] != 0) {
+        if (responseData['JSONResult'].toString() != '0') {
           throw Exception(responseData['error'] ?? 'Failed to submit permission request');
         }
       } else {
