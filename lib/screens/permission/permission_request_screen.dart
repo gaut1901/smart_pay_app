@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants.dart';
+import '../../core/ui_constants.dart';
 import '../../data/services/permission_service.dart';
 
 class PermissionRequestScreen extends StatefulWidget {
@@ -214,62 +215,43 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
   }
 
   void _showViewDialog(dynamic item) async {
-    showDialog(
+    UIConstants.showViewModal(
       context: context,
-      builder: (context) => FutureBuilder<Map<String, dynamic>>(
+      title: 'Permission Request Details',
+      body: FutureBuilder<Map<String, dynamic>>(
         future: _permissionService.getPermissionDetails(item['id'].toString(), 'View'),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()));
           }
           if (snapshot.hasError) {
-            return AlertDialog(
-              title: const Text('Error'),
-              content: Text(snapshot.error.toString()),
-              actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
-            );
+            return Center(child: Padding(padding: EdgeInsets.all(20), child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red))));
           }
           
           final d = snapshot.data!;
-          return AlertDialog(
-            title: const Text('Permission Request Details'),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildDetailItem('Ticket No', d['TicketNo'] ?? ''),
-                  _buildDetailItem('Employee', d['EmpName'] ?? ''),
-                  _buildDetailItem('Date', d['SDate'] ?? ''),
-                  _buildDetailItem('Type', d['PType'] ?? ''),
-                  _buildDetailItem('Session', d['Session'] ?? ''),
-                  _buildDetailItem('Minutes', (d['PerMins'] ?? 0).toString()),
-                  _buildDetailItem('Remarks', d['Remarks'] ?? ''),
-                  _buildDetailItem('Status', d['App'] ?? ''),
-                  _buildDetailItem('Approved By', d['AppBy'] ?? ''),
-                  _buildDetailItem('Approved On', d['AppOn'] ?? ''),
-                ],
-              ),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
+              children: [
+                UIConstants.buildDetailItem('Ticket No', d['TicketNo'] ?? ''),
+                UIConstants.buildDetailItem('Employee', d['EmpName'] ?? ''),
+                UIConstants.buildDetailItem('Date', d['SDate'] ?? ''),
+                UIConstants.buildDetailItem('Type', d['PType'] ?? ''),
+                UIConstants.buildDetailItem('Session', d['Session'] ?? ''),
+                UIConstants.buildDetailItem('Minutes', (d['PerMins'] ?? 0).toString()),
+                UIConstants.buildDetailItem('Remarks', d['Remarks'] ?? ''),
+                UIConstants.buildDetailItem('Status', d['App'] ?? ''),
+                UIConstants.buildDetailItem('Approved By', d['AppBy'] ?? ''),
+                UIConstants.buildDetailItem('Approved On', d['AppOn'] ?? ''),
+              ],
             ),
-            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
           );
         },
       ),
     );
   }
 
-  Widget _buildDetailItem(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 90, child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-          Expanded(child: Text(value.isEmpty ? '-' : value, style: const TextStyle(fontSize: 13))),
-        ],
-      ),
-    );
-  }
+
 
   void _confirmDelete(dynamic item, String action) {
     showDialog(
@@ -400,15 +382,12 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
                       height: 50,
                       child: ElevatedButton(
                         onPressed: _isSubmitting ? null : _submitRequest,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _currentAction == 'Create' ? AppColors.primary : Colors.orange,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
+                        style: _currentAction == 'Create' ? UIConstants.primaryButtonStyle : UIConstants.updateButtonStyle,
                         child: _isSubmitting 
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                           : Text(
                               _currentAction == 'Create' ? 'Submit Request' : 'Update Application', 
-                              style: const TextStyle(color: Colors.white, fontSize: 16)
+                              style: UIConstants.buttonTextStyle
                             ),
                       ),
                     ),
@@ -420,12 +399,8 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
                         child: ElevatedButton.icon(
                           onPressed: _resetForm,
                           icon: const Icon(Icons.cancel, size: 20),
-                          label: const Text('Cancel Edit', style: TextStyle(fontSize: 15)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
+                          label: const Text('Cancel Edit'),
+                          style: UIConstants.cancelButtonStyle,
                         ),
                       ),
                     ],
@@ -482,17 +457,17 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: DataTable(
-                        headingRowColor: MaterialStateProperty.all(const Color(0xFFF1F1F1)),
-                        columns: const [
-                          DataColumn(label: Text('TICKET NO', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('EMP NAME', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('DATE', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('TYPE', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('SESSION', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('MINS', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('STATUS', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('APP.BY', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('ACTIONS', style: TextStyle(fontWeight: FontWeight.bold))),
+                        headingRowColor: WidgetStateProperty.all(UIConstants.tableHeaderBg),
+                        columns: [
+                          DataColumn(label: Text('TICKET NO', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('EMP NAME', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('DATE', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('TYPE', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('SESSION', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('MINS', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('STATUS', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('APP.BY', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('ACTIONS', style: UIConstants.tableHeaderStyle)),
                         ],
                         rows: _filteredHistory.map((item) {
                           return DataRow(cells: [
@@ -524,36 +499,12 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
   Widget _buildActions(dynamic item) {
     bool canEdit = (item['App'] == "-" || item['App'] == "Pending");
     
-    // In legacy ngEmpPermission.js, if App is Approved, it calls 'Revise' which is essentially an edit
-    // But for Delete, if App is Approved, it calls 'Cancel'.
-    
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.visibility, color: Colors.blue, size: 18),
-          tooltip: 'View',
-          onPressed: () => _handleAction(item, 'View'),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: const Icon(Icons.edit, color: Colors.orange, size: 18),
-          tooltip: canEdit ? 'Modify' : 'Revise',
-          onPressed: () => _handleAction(item, canEdit ? 'Modify' : 'Revise'),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: const Icon(Icons.delete, color: Colors.red, size: 18),
-          tooltip: canEdit ? 'Delete' : 'Cancel',
-          onPressed: () => _handleAction(item, canEdit ? 'Delete' : 'Cancel'),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-        ),
-      ],
+    return UIConstants.buildActionButtons(
+      onView: () => _handleAction(item, 'View'),
+      onEdit: () => _handleAction(item, canEdit ? 'Modify' : 'Revise'),
+      onDelete: () => _handleAction(item, canEdit ? 'Delete' : 'Cancel'),
+      editTooltip: canEdit ? 'Modify' : 'Revise',
+      deleteTooltip: canEdit ? 'Delete' : 'Cancel',
     );
   }
 

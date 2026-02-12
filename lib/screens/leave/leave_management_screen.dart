@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../core/ui_constants.dart';
 import '../../data/models/leave_model.dart';
 import '../../data/services/leave_service.dart';
 import 'package:intl/intl.dart';
@@ -604,13 +605,10 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
                 height: 50,
                 child: ElevatedButton(
                   onPressed: _isSubmitting ? null : _submitLeave,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _currentAction == 'Create' ? AppColors.primary : Colors.orange,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
+                  style: _currentAction == 'Create' ? UIConstants.primaryButtonStyle : UIConstants.updateButtonStyle,
                   child: _isSubmitting 
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : Text(_currentAction == 'Create' ? 'Submit Application' : 'Update Application', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                    : Text(_currentAction == 'Create' ? 'Submit Application' : 'Update Application', style: UIConstants.buttonTextStyle),
                 ),
               ),
               if (_currentAction != 'Create') ...[
@@ -621,12 +619,8 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
                   child: ElevatedButton.icon(
                     onPressed: _resetForm,
                     icon: const Icon(Icons.cancel, size: 20),
-                    label: const Text('Cancel Edit', style: TextStyle(fontSize: 15)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
+                    label: const Text('Cancel Edit'),
+                    style: UIConstants.cancelButtonStyle,
                   ),
                 ),
               ],
@@ -804,19 +798,19 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: DataTable(
-                        headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F1F1)),
-                        columns: const [
-                          DataColumn(label: Text('TKT.NO', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('EMP NAME', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('REQ.DATE', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('FROM DATE', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('TO DATE', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('STATUS', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('REASON', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('APP', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('APP.BY', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('APP.ON', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('APP.REMARKS', style: TextStyle(fontWeight: FontWeight.bold))),
+                        headingRowColor: WidgetStateProperty.all(UIConstants.tableHeaderBg),
+                        columns: [
+                          DataColumn(label: Text('TKT.NO', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('EMP NAME', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('REQ.DATE', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('FROM DATE', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('TO DATE', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('STATUS', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('REASON', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('APP', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('APP.BY', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('APP.ON', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('APP.REMARKS', style: UIConstants.tableHeaderStyle)),
                           DataColumn(label: Text('R.APP', style: TextStyle(fontWeight: FontWeight.bold))),
                           DataColumn(label: Text('R.APP.BY', style: TextStyle(fontWeight: FontWeight.bold))),
                           DataColumn(label: Text('R.APP.ON', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -867,29 +861,17 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          icon: const Icon(Icons.visibility, color: Colors.blue, size: 18),
-          tooltip: 'View',
-          onPressed: () => _handleAction(item, 'View'),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-        ),
+        UIConstants.buildViewButton(onPressed: () => _handleAction(item, 'View')),
         if (canEdit) ...[
           const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.edit, color: Colors.orange, size: 18),
-            tooltip: editLabel,
+          UIConstants.buildEditButton(
             onPressed: () => _handleAction(item, editLabel),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            tooltip: editLabel,
           ),
           const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red, size: 18),
-            tooltip: deleteLabel,
+          UIConstants.buildDeleteButton(
             onPressed: () => _handleAction(item, deleteLabel),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            tooltip: deleteLabel,
           ),
         ],
       ],
@@ -942,65 +924,46 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   }
 
   void _showViewDialog(LeaveRequest item) async {
-    showDialog(
+    UIConstants.showViewModal(
       context: context,
-      builder: (context) => FutureBuilder<Map<String, dynamic>>(
+      title: 'Leave Request Details',
+      body: FutureBuilder<Map<String, dynamic>>(
         future: _leaveService.getLeaveRequestDetails(item.id, 'View'),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()));
           }
           if (snapshot.hasError) {
-            return AlertDialog(
-              title: const Text('Error'),
-              content: Text(snapshot.error.toString()),
-              actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
-            );
+            return Center(child: Padding(padding: EdgeInsets.all(20), child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red))));
           }
           
           final d = snapshot.data!;
-          return AlertDialog(
-            title: const Text('Leave Request Details'),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildDetailItem('Ticket No', d['TicketNo'] ?? ''),
-                  _buildDetailItem('Employee', d['EmpName'] ?? ''),
-                  _buildDetailItem('Request Date', d['SDate'] ?? ''),
-                  _buildDetailItem('From Date', d['FromDate'] ?? ''),
-                  _buildDetailItem('To Date', d['ToDate'] ?? ''),
-                  _buildDetailItem('Days', (d['Days'] ?? 0).toString()),
-                  _buildDetailItem('Leave Type', d['Status'] ?? ''),
-                  _buildDetailItem('Reason', d['LRName'] ?? ''),
-                  _buildDetailItem('Remarks', d['Remarks'] ?? ''),
-                  _buildDetailItem('Status', d['App'] ?? ''),
-                  _buildDetailItem('Approved By', d['AppBy'] ?? ''),
-                  _buildDetailItem('Approved Date', d['AppOn'] ?? ''),
-                  _buildDetailItem('Approval Remarks', d['AppRemarks'] ?? ''),
-                ],
-              ),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
+              children: [
+                UIConstants.buildDetailItem('Ticket No', d['TicketNo'] ?? ''),
+                UIConstants.buildDetailItem('Employee', d['EmpName'] ?? ''),
+                UIConstants.buildDetailItem('Request Date', d['SDate'] ?? ''),
+                UIConstants.buildDetailItem('From Date', d['FromDate'] ?? ''),
+                UIConstants.buildDetailItem('To Date', d['ToDate'] ?? ''),
+                UIConstants.buildDetailItem('Days', (d['Days'] ?? 0).toString()),
+                UIConstants.buildDetailItem('Leave Type', d['Status'] ?? ''),
+                UIConstants.buildDetailItem('Reason', d['LRName'] ?? ''),
+                UIConstants.buildDetailItem('Remarks', d['Remarks'] ?? ''),
+                UIConstants.buildDetailItem('Status', d['App'] ?? ''),
+                UIConstants.buildDetailItem('Approved By', d['AppBy'] ?? ''),
+                UIConstants.buildDetailItem('Approved Date', d['AppOn'] ?? ''),
+                UIConstants.buildDetailItem('Approval Remarks', d['AppRemarks'] ?? ''),
+              ],
             ),
-            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
           );
         },
       ),
     );
   }
 
-  Widget _buildDetailItem(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 100, child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-          Expanded(child: Text(value.isEmpty ? '-' : value, style: const TextStyle(fontSize: 13))),
-        ],
-      ),
-    );
-  }
+
 
   void _confirmDelete(LeaveRequest item, String action) {
     showDialog(

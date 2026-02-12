@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../../core/api_config.dart';
 import '../models/user_model.dart';
@@ -34,6 +35,8 @@ class AuthService {
       } else {
         throw Exception('Server error: ${response.statusCode}');
       }
+    } on SocketException catch (_) {
+      throw Exception('No internet connection. Please check your network.');
     } catch (e) {
       rethrow;
     }
