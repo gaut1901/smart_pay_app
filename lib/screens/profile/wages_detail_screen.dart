@@ -132,8 +132,9 @@ class _WagesDetailScreenState extends State<WagesDetailScreen> {
                         child: ElevatedButton(
                           onPressed: _submitWages,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
+                            backgroundColor: const Color(0xFFE53935),
                             padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                           child: const Text('Update Wages', style: TextStyle(color: Colors.white, fontSize: 16)),
                         ),

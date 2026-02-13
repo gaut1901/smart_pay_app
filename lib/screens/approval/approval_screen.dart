@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../data/services/approval_service.dart';
-import 'approval_table_screen.dart';
+import 'approval_list_screen.dart';
 
 class ApprovalScreen extends StatefulWidget {
   const ApprovalScreen({super.key});
@@ -105,12 +105,12 @@ class _ApprovalScreenState extends State<ApprovalScreen> {
     // However, looking at the previous file content, I have all the types.
     
     final List<Map<String, dynamic>> gridItems = [
-      {'title': 'Apply Leave', 'type': 'Leave', 'count': _summary!.leave, 'icon': Icons.calendar_today, 'color': const Color(0xFF2196F3)}, // Blue
-      {'title': 'Apply Leave Compensation', 'type': 'LeaveComp', 'count': 0, 'icon': Icons.history, 'color': const Color(0xFFFF4081)}, // Pink
-      {'title': 'Permission Apply', 'type': 'Permission', 'count': _summary!.permission, 'icon': Icons.access_time, 'color': const Color(0xFFD50000)}, // Red
+      {'title': 'Grant Leave Approval', 'type': 'Leave', 'count': _summary!.leave, 'icon': Icons.calendar_today, 'color': const Color(0xFF2196F3)}, // Blue
+      {'title': 'Leave Compensation', 'type': 'LeaveComp', 'count': 0, 'icon': Icons.history, 'color': const Color(0xFFFF4081)}, // Pink
+      {'title': 'Permission', 'type': 'Permission', 'count': _summary!.permission, 'icon': Icons.access_time, 'color': const Color(0xFFD50000)}, // Red
       {'title': 'Advance', 'type': 'Advance', 'count': _summary!.advance, 'icon': Icons.money, 'color': const Color(0xFF455A64)}, // Grey/Blue
-      {'title': 'Advance Adjustment', 'type': 'AdvAdj', 'count': _summary!.advanceAdjustment, 'icon': Icons.calculate, 'color': const Color(0xFF3B7080)},
-      {'title': 'Shift Deviation', 'type': 'ShiftDev', 'count': _summary!.shiftDeviation, 'icon': Icons.schedule, 'color': const Color(0xFFE70D0D)},
+      {'title': 'Advance Adjustment Approval', 'type': 'AdvAdj', 'count': _summary!.advanceAdjustment, 'icon': Icons.calculate, 'color': const Color(0xFF3B7080)},
+      {'title': 'Approval Shift Deviation', 'type': 'ShiftDev', 'count': _summary!.shiftDeviation, 'icon': Icons.schedule, 'color': const Color(0xFFE70D0D)},
     ];
 
     return GridView.builder(
@@ -136,7 +136,7 @@ class _ApprovalScreenState extends State<ApprovalScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ApprovalTableScreen(
+            builder: (context) => ApprovalListScreen(
               type: item['type'],
               title: item['title'],
             ),
