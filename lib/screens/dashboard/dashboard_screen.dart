@@ -151,6 +151,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           _buildDrawerItem(
             context,
+            icon: Icons.groups,
+            title: 'Teams',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/teams');
+            },
+          ),
+          _buildDrawerItem(
+            context,
             icon: Icons.edit_note,
             title: 'Requests',
             titleColor: AppColors.error,
@@ -709,7 +718,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               }),
             ),
             trailing: team.length > 5 ? TextButton(
-              onPressed: () {}, // TODO: View All Team
+              onPressed: () => Navigator.pushNamed(context, '/teams'),
               child: const Text('View All', style: TextStyle(fontSize: 12)),
             ) : null,
           ),

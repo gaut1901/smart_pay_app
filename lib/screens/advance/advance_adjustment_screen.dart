@@ -98,7 +98,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
       _historyError = null;
     });
     try {
-      final history = await _advanceService.getAARHistory();
+      final history = await _advanceService.getAdvanceAdjustmentHistory();
       setState(() {
         _history = history;
         _filteredHistory = history;
@@ -116,7 +116,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
   Future<void> _fetchLookups() async {
     setState(() => _isLoadingLookups = true);
     try {
-      final lookupData = await _advanceService.getAARLookup();
+      final lookupData = await _advanceService.getAdvanceAdjustmentLookup();
       setState(() {
         _deductionTypes = lookupData['dtDed'] ?? [];
         _salaryMonths = lookupData['dtSalary'] ?? [];
@@ -137,12 +137,10 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
         _isLoadingLookups = false;
       });
     } catch (e) {
-      setState(() => _isLoadingLookups = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load lookups: $e')),
-        );
+        UIConstants.showErrorSnackBar(context, 'Failed to load lookups: $e');
       }
+      setState(() => _isLoadingLookups = false);
     }
   }
 
@@ -164,19 +162,19 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
 
   Future<void> _submitRequest() async {
     if (_selectedDeduction == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select Deduction Type')));
+      UIConstants.showErrorSnackBar(context, 'Please select Deduction Type');
       return;
     }
     if (_selectedSalaryMonth == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select Salary Month')));
+      UIConstants.showErrorSnackBar(context, 'Please select Salary Month');
       return;
     }
     if (_selectedAdvNo == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select Advance No')));
+      UIConstants.showErrorSnackBar(context, 'Please select Advance No');
       return;
     }
     if (_selectedApprovalType == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select Approval Type')));
+      UIConstants.showErrorSnackBar(context, 'Please select Approval Type');
       return;
     }
     
@@ -185,7 +183,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
     // Only validate > 0 for Create or Modify
     if (_currentAction != 'Delete' && _currentAction != 'Cancel') {
       if (amount <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid adjustment amount')));
+        UIConstants.showErrorSnackBar(context, 'Please enter valid adjustment amount');
         return;
       }
     }
@@ -194,33 +192,34 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
 
     try {
       final dateFormat = DateFormat('dd-MM-yyyy');
-      final postData = {
-        "ReqDate": dateFormat.format(_selectedDate),
-        "DedName": _selectedDeduction,
-        "SalaryMonth": _selectedSalaryMonth,
-        "AARReason": _selectedApprovalType,
-        "Remarks": _remarksController.text.trim(),
-        "AdvNo": _selectedAdvNo,
-        "AdjAmount": amount,
-        "Actions": _currentAction,
-        "EditId": _editId ?? "",
-      };
+      final Map<String, dynamic> postData = _editDetails != null 
+          ? Map<String, dynamic>.from(_editDetails!) 
+          : {};
 
-      await _advanceService.submitAARRequest(postData);
+      postData["ReqDate"] = dateFormat.format(_selectedDate);
+      postData["DedName"] = _selectedDeduction;
+      postData["SalaryMonth"] = _selectedSalaryMonth;
+      postData["AARReason"] = _selectedApprovalType;
+      postData["Remarks"] = _remarksController.text.trim();
+      postData["AdvNo"] = _selectedAdvNo;
+      postData["AdjAmount"] = amount;
+      postData["Actions"] = _currentAction;
+      postData["EditId"] = _editId ?? "";
+
+      await _advanceService.submitAdvanceAdjustment(postData);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Advance adjustment request ${_currentAction == 'Create' ? 'submitted' : 'updated'} successfully')),
+        UIConstants.showSuccessSnackBar(
+          context, 
+          'Adjustment request ${_currentAction == 'Create' ? 'submitted' : 'updated'} successfully'
         );
         _resetForm();
-        _fetchHistory();
+        await _fetchHistory();
         _tabController.animateTo(1);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-        );
+        UIConstants.showErrorSnackBar(context, e.toString().replaceAll('Exception: ', ''));
       }
     } finally {
       if (mounted) {
@@ -242,7 +241,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
   Future<void> _loadEditData(AdvanceAdjustmentRequest item, String action) async {
     setState(() => _isLoadingHistory = true);
     try {
-      final details = await _advanceService.getAARDetails(item.id, action);
+      final details = await _advanceService.getAdvanceAdjustmentDetails(item.id, action);
       setState(() {
         _currentAction = action;
         _editId = item.id;
@@ -265,7 +264,9 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
       });
     } catch (e) {
       setState(() => _isLoadingHistory = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading details: $e')));
+      if (mounted) {
+        UIConstants.showErrorSnackBar(context, 'Error loading details: $e');
+      }
     }
   }
 
@@ -274,7 +275,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
       context: context,
       title: 'Advance Adjustment Details',
       body: FutureBuilder<Map<String, dynamic>>(
-        future: _advanceService.getAARDetails(item.id, 'View'),
+        future: _advanceService.getAdvanceAdjustmentDetails(item.id, 'View'),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()));
@@ -294,7 +295,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
                 UIConstants.buildDetailItem('Deduction', d['DedName'] ?? ''),
                 UIConstants.buildDetailItem('Salary Month', d['SalaryMonth'] ?? ''),
                 UIConstants.buildDetailItem('Advance No', d['AdvNo'] ?? ''),
-                UIConstants.buildDetailItem('Reason', d['AARReason'] ?? ''),
+                UIConstants.buildDetailItem('Reason', d['AAReason'] ?? ''),
                 UIConstants.buildDetailItem('Amount', (d['AdjAmount'] ?? 0).toString()),
                 UIConstants.buildDetailItem('Remarks', d['Remarks'] ?? ''),
                 UIConstants.buildDetailItem('Status', d['App'] ?? ''),
@@ -323,30 +324,16 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
               Navigator.pop(context);
               setState(() => _isLoadingHistory = true);
               try {
-                final dateFormat = DateFormat('dd-MM-yyyy');
-                // Fetch details first to get necessary fields for delete payload
-                final details = await _advanceService.getAARDetails(item.id, 'Delete');
-                
-                final postData = {
-                  "ReqDate": details['ReqDate'],
-                  "DedName": details['DedName'], 
-                  "SalaryMonth": details['SalaryMonth'],
-                  "AARReason": details['AARReason'], 
-                  "Remarks": details['Remarks'] ?? "",
-                  "AdvNo": details['AdvNo'], 
-                  "AdjAmount": details['AdjAmount'],
-                  "Actions": action,
-                  "EditId": item.id,
-                };
-                await _advanceService.submitAARRequest(postData);
-                _fetchHistory();
+                final details = await _advanceService.getAdvanceAdjustmentDetails(item.id, action);
+                await _advanceService.submitAdvanceAdjustment(details);
+                await _fetchHistory();
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Request $action successfully')));
+                  UIConstants.showSuccessSnackBar(context, 'Request $action successfully');
                 }
               } catch (e) {
                 setState(() => _isLoadingHistory = false);
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  UIConstants.showErrorSnackBar(context, 'Error: $e');
                 }
               }
             },

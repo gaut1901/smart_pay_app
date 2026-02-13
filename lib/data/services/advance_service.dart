@@ -174,7 +174,7 @@ class AdvanceService {
   }
 
   // Advance Adjustment Request (AAR) Methods
-  Future<List<AdvanceAdjustmentRequest>> getAARHistory() async {
+  Future<List<AdvanceAdjustmentRequest>> getAdvanceAdjustmentHistory() async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
 
@@ -192,14 +192,14 @@ class AdvanceService {
         final List<dynamic> list = responseData['dtList'] ?? [];
         return list.map((item) => AdvanceAdjustmentRequest.fromJson(item)).toList();
       } else {
-        throw Exception('Failed to load AAR history: ${response.statusCode}');
+        throw Exception('Failed to load advance adjustment history: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<Map<String, dynamic>> getAARLookup({String action = 'Create'}) async {
+  Future<Map<String, dynamic>> getAdvanceAdjustmentLookup({String action = 'Create'}) async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
 
@@ -215,14 +215,14 @@ class AdvanceService {
         final data = jsonDecode(response.body);
         return jsonDecode(data['response']);
       } else {
-        throw Exception('Failed to load AAR lookup: ${response.statusCode}');
+        throw Exception('Failed to load advance adjustment lookup: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<Map<String, dynamic>> getAARDetails(String id, String action) async {
+  Future<Map<String, dynamic>> getAdvanceAdjustmentDetails(String id, String action) async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
 
@@ -238,7 +238,7 @@ class AdvanceService {
         final data = jsonDecode(response.body);
         return jsonDecode(data['response']);
       } else {
-        throw Exception('Failed to load AAR details: ${response.statusCode}');
+        throw Exception('Failed to load advance adjustment details: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
@@ -276,7 +276,7 @@ class AdvanceService {
     }
   }
 
-  Future<void> submitAARRequest(Map<String, dynamic> postData) async {
+  Future<void> submitAdvanceAdjustment(Map<String, dynamic> postData) async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
 
@@ -293,7 +293,7 @@ class AdvanceService {
         final data = jsonDecode(response.body);
         final responseData = jsonDecode(data['response']);
         if (responseData['JSONResult'].toString() != '0') {
-          throw Exception(responseData['error'] ?? 'Failed to submit AAR request');
+          throw Exception(responseData['error'] ?? 'Failed to submit advance adjustment');
         }
       } else {
         throw Exception('Server error: ${response.statusCode}');

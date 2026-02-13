@@ -153,7 +153,7 @@ class UIConstants {
   
   /// Build Edit action button (Orange)
   static Widget buildEditButton({
-    required VoidCallback onPressed,
+    VoidCallback? onPressed,
     String tooltip = 'Edit',
   }) {
     return IconButton(
@@ -167,7 +167,7 @@ class UIConstants {
   
   /// Build Delete action button (Red)
   static Widget buildDeleteButton({
-    required VoidCallback onPressed,
+    VoidCallback? onPressed,
     String tooltip = 'Delete',
   }) {
     return IconButton(
@@ -182,8 +182,8 @@ class UIConstants {
   /// Build action buttons row (View, Edit, Delete)
   static Widget buildActionButtons({
     required VoidCallback onView,
-    required VoidCallback onEdit,
-    required VoidCallback onDelete,
+    VoidCallback? onEdit,
+    VoidCallback? onDelete,
     String editTooltip = 'Edit',
     String deleteTooltip = 'Delete',
   }) {
@@ -432,6 +432,33 @@ class UIConstants {
             ],
           ),
         ),
+      ),
+    );
+  }
+  // ============================================================================
+  // SNACKBAR HELPERS
+  // ============================================================================
+
+  /// Show a success SnackBar with white text and black background
+  static void showSuccessSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+        backgroundColor: Colors.black,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  /// Show an error SnackBar with white text and black background (can customize color if needed, but keeping black as requested)
+  static void showErrorSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+        backgroundColor: Colors.black, // Still using black as per user requirement but could be primaryRed
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
       ),
     );
   }

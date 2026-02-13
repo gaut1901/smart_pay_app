@@ -7,6 +7,10 @@ import '../models/user_model.dart';
 class AuthService {
   static User? _currentUser;
   static User? get currentUser => _currentUser;
+  
+  static String _memberEmpCode = "0";
+  static String get memberEmpCode => _memberEmpCode;
+  static set memberEmpCode(String value) => _memberEmpCode = value;
 
   Future<User?> login(String username, String password) async {
     final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.login}');
@@ -44,5 +48,6 @@ class AuthService {
 
   void logout() {
     _currentUser = null;
+    _memberEmpCode = "0";
   }
 }

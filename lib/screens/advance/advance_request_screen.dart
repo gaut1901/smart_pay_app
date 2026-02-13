@@ -144,12 +144,10 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
         _isLoadingLookups = false;
       });
     } catch (e) {
-      setState(() => _isLoadingLookups = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load lookups: $e')),
-        );
+        UIConstants.showErrorSnackBar(context, 'Failed to load lookups: $e');
       }
+      setState(() => _isLoadingLookups = false);
     }
   }
 
@@ -182,34 +180,35 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
 
     try {
       final dateFormat = DateFormat('dd-MM-yyyy');
-      final postData = {
-        "EDName": _selectedDeduction,
-        "Reason": _selectedApprovalType,
-        "SDate": dateFormat.format(_selectedDate),
-        "AdvAmount": amount,
-        "NoofIns": int.tryParse(_noofInsController.text) ?? 0,
-        "InsAmount": insAmount,
-        "Active": true,
-        "Remarks": _remarksController.text.trim(),
-        "Actions": _currentAction,
-        "EditId": _editId ?? "",
-      };
+      final Map<String, dynamic> postData = _editDetails != null 
+          ? Map<String, dynamic>.from(_editDetails!) 
+          : {};
+
+      postData["EDName"] = _selectedDeduction;
+      postData["Reason"] = _selectedApprovalType;
+      postData["SDate"] = dateFormat.format(_selectedDate);
+      postData["AdvAmount"] = amount;
+      postData["NoofIns"] = int.tryParse(_noofInsController.text) ?? 0;
+      postData["InsAmount"] = insAmount;
+      postData["Active"] = postData["Active"] ?? true;
+      postData["Remarks"] = _remarksController.text.trim();
+      postData["Actions"] = _currentAction;
+      postData["EditId"] = _editId ?? "";
 
       await _advanceService.submitAdvanceRequest(postData);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Advance request ${_currentAction == 'Create' ? 'submitted' : 'updated'} successfully')),
+        UIConstants.showSuccessSnackBar(
+          context, 
+          'Advance request ${_currentAction == 'Create' ? 'submitted' : 'updated'} successfully'
         );
         _resetForm();
-        _fetchHistory();
+        await _fetchHistory();
         _tabController.animateTo(1);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-        );
+        UIConstants.showErrorSnackBar(context, e.toString().replaceAll('Exception: ', ''));
       }
     } finally {
       if (mounted) {
@@ -258,7 +257,9 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
       });
     } catch (e) {
       setState(() => _isLoadingHistory = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading details: $e')));
+      if (mounted) {
+        UIConstants.showErrorSnackBar(context, 'Error loading details: $e');
+      }
     }
   }
 
@@ -316,31 +317,16 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
               Navigator.pop(context);
               setState(() => _isLoadingHistory = true);
               try {
-                // Fetch details first to get necessary fields for delete payload
-                final details = await _advanceService.getAdvanceDetails(item.id, 'Delete');
-                
-                final dateFormat = DateFormat('dd-MM-yyyy');
-                final postData = {
-                  "SDate": details['SDate'],
-                  "EDName": details['EDName'],
-                  "Reason": details['Reason'],
-                  "AdvAmount": details['AdvAmount'],
-                  "NoofIns": details['NoofIns'],
-                  "InsAmount": details['InsAmount'],
-                  "Active": details['Active'] ?? true,
-                  "Remarks": details['Remarks'] ?? "",
-                  "Actions": action,
-                  "EditId": item.id,
-                };
-                await _advanceService.submitAdvanceRequest(postData);
-                _fetchHistory();
+                final details = await _advanceService.getAdvanceDetails(item.id, action);
+                await _advanceService.submitAdvanceRequest(details);
+                await _fetchHistory();
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Request $action successfully')));
+                  UIConstants.showSuccessSnackBar(context, 'Request $action successfully');
                 }
               } catch (e) {
                 setState(() => _isLoadingHistory = false);
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  UIConstants.showErrorSnackBar(context, 'Error: $e');
                 }
               }
             },

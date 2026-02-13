@@ -19,6 +19,9 @@ import 'screens/asset/asset_return_screen.dart';
 import 'screens/it_file/it_file_screen.dart';
 import 'screens/request/shift_deviation_screen.dart';
 import 'screens/approval/approval_screen.dart';
+import 'screens/teams/teams_screen.dart';
+import 'screens/teams/team_detail_screen.dart';
+import 'data/models/team_model.dart';
 import 'core/constants.dart';
 
 void main() {
@@ -64,6 +67,26 @@ class SmartPayApp extends StatelessWidget {
         '/it_file': (context) => const ITFileScreen(),
         '/shift_deviation': (context) => const ShiftDeviationScreen(),
         '/approval': (context) => const ApprovalScreen(),
+        '/teams': (context) => const TeamsScreen(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/team_detail') {
+          if (settings.arguments is TeamMember) {
+            final member = settings.arguments as TeamMember;
+            return MaterialPageRoute(
+              builder: (context) => TeamDetailScreen(
+                empCode: member.empCode,
+                member: member,
+              ),
+            );
+          } else if (settings.arguments is String) {
+            final empCode = settings.arguments as String;
+            return MaterialPageRoute(
+              builder: (context) => TeamDetailScreen(empCode: empCode),
+            );
+          }
+        }
+        return null;
       },
     );
   }

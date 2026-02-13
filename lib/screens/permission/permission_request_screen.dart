@@ -125,7 +125,7 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
 
   Future<void> _submitRequest() async {
     if (_minsController.text.trim().isEmpty || _minsController.text == '0') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter permission minutes')));
+      UIConstants.showErrorSnackBar(context, 'Please enter permission minutes');
       return;
     }
 
@@ -133,41 +133,42 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
 
     try {
       final dateFormat = DateFormat('dd-MM-yyyy');
-      final postData = {
-        "SDate": dateFormat.format(_selectedDate),
-        "PType": _selectedType,
-        "Session": _selectedSession,
-        "Remarks": _remarksController.text.trim(),
-        "PerMins": int.tryParse(_minsController.text) ?? 0,
-        "EmpName": _empName ?? "",
-        "Actions": _currentAction,
-        "EditId": _editId ?? "",
-        "App": _currentAction == 'Create' ? '-' : (_editDetails?['App'] ?? '-'),
-        "App1": _currentAction == 'Create' ? '-' : (_editDetails?['App1'] ?? '-'),
-        
-        // Include old values for update tracking as per legacy ngEmpPermission.js
-        "oldSDate": _editDetails?['oldSDate'] ?? _editDetails?['SDate'] ?? "",
-        "oldPType": _editDetails?['oldPType'] ?? _editDetails?['PType'] ?? "",
-        "oldSession": _editDetails?['oldSession'] ?? _editDetails?['Session'] ?? "",
-        "oldRemarks": _editDetails?['oldRemarks'] ?? _editDetails?['Remarks'] ?? "",
-        "oldPerMins": _editDetails?['oldPerMins'] ?? _editDetails?['PMin'] ?? 0,
-      };
+      final Map<String, dynamic> postData = _editDetails != null 
+          ? Map<String, dynamic>.from(_editDetails!) 
+          : {};
+
+      postData["SDate"] = dateFormat.format(_selectedDate);
+      postData["PType"] = _selectedType;
+      postData["Session"] = _selectedSession;
+      postData["Remarks"] = _remarksController.text.trim();
+      postData["PerMins"] = int.tryParse(_minsController.text) ?? 0;
+      postData["EmpName"] = _empName ?? "";
+      postData["Actions"] = _currentAction;
+      postData["EditId"] = _editId ?? "";
+      postData["App"] = _currentAction == 'Create' ? '-' : (postData['App'] ?? '-');
+      postData["App1"] = _currentAction == 'Create' ? '-' : (postData['App1'] ?? '-');
+      
+      // Update old values for tracking
+      postData["oldSDate"] = postData["oldSDate"] ?? postData["SDate"] ?? "";
+      postData["oldPType"] = postData["oldPType"] ?? postData["PType"] ?? "";
+      postData["oldSession"] = postData["oldSession"] ?? postData["Session"] ?? "";
+      postData["oldRemarks"] = postData["oldRemarks"] ?? postData["Remarks"] ?? "";
+      postData["oldPerMins"] = postData["oldPerMins"] ?? postData["PMin"] ?? 0;
 
       await _permissionService.submitPermissionRequest(postData);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Permission request ${_currentAction == 'Create' ? 'submitted' : 'updated'} successfully')),
+        UIConstants.showSuccessSnackBar(
+          context, 
+          'Permission request ${_currentAction == 'Create' ? 'submitted' : 'updated'} successfully'
         );
         _resetForm();
-        _fetchHistory();
+        await _fetchHistory();
         _tabController.animateTo(1);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-        );
+        UIConstants.showErrorSnackBar(context, e.toString().replaceAll('Exception: ', ''));
       }
     } finally {
       if (mounted) {
@@ -210,7 +211,9 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
       });
     } catch (e) {
       setState(() => _isLoadingHistory = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading details: $e')));
+      if (mounted) {
+        UIConstants.showErrorSnackBar(context, 'Error loading details: $e');
+      }
     }
   }
 
@@ -266,38 +269,17 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> with 
               Navigator.pop(context);
               setState(() => _isLoadingHistory = true);
               try {
-                final dateFormat = DateFormat('dd-MM-yyyy');
                 // Fetch details first to get necessary fields and old values
-                final details = await _permissionService.getPermissionDetails(item['id'].toString(), 'Delete');
-                
-                final postData = {
-                  "SDate": details['SDate'],
-                  "PType": details['PType'],
-                  "Session": details['Session'],
-                  "Remarks": details['Remarks'] ?? "",
-                  "PerMins": details['PerMins'] ?? 0,
-                  "EmpName": details['EmpName'] ?? "",
-                  "Actions": action,
-                  "EditId": item['id'].toString(),
-                  "App": details['App'] ?? "-",
-                  "App1": details['App1'] ?? "-",
-                  
-                  // Include old values as they might be checked
-                  "oldSDate": details['SDate'], // For delete, old is same as current
-                  "oldPType": details['PType'],
-                  "oldSession": details['Session'],
-                  "oldRemarks": details['Remarks'] ?? "",
-                  "oldPerMins": details['PerMins'] ?? 0,
-                };
-                await _permissionService.submitPermissionRequest(postData);
-                _fetchHistory();
+                final details = await _permissionService.getPermissionDetails(item['id'].toString(), action);
+                await _permissionService.submitPermissionRequest(details);
+                await _fetchHistory();
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Request $action successfully')));
+                  UIConstants.showSuccessSnackBar(context, 'Request $action successfully');
                 }
               } catch (e) {
                 setState(() => _isLoadingHistory = false);
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  UIConstants.showErrorSnackBar(context, 'Error: $e');
                 }
               }
             },

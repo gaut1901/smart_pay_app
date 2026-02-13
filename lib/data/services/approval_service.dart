@@ -104,8 +104,8 @@ class ApprovalService {
       case 'Advance': endpoint = 'api/attn/AdvApp/'; break;
       case 'AdvanceAdjustment': endpoint = 'api/attn/AARApp/'; break;
       case 'Reimbursement': endpoint = 'api/reimapp/getlist/'; break;
-      case 'AssetRequest': endpoint = 'api/assetapp/getlist/'; break;
-      case 'AssetReturn': endpoint = 'api/assetrtnapp/getlist/'; break;
+      case 'AssetRequest': endpoint = 'api/assetapp/app/'; break;
+      case 'AssetReturn': endpoint = 'api/assetrtnapp/app/'; break;
       case 'ITFile': endpoint = 'api/itfileapp/getlist/'; break;
       case 'ShiftDeviation': endpoint = 'api/attn/ShiftDevApp/'; break;
       case 'ProfileChange': endpoint = 'api/attn/EmpApp/'; break;
@@ -182,8 +182,8 @@ class ApprovalService {
       case 'Advance': endpoint = 'api/attn/AdvApproval/'; break;
       case 'AdvanceAdjustment': endpoint = 'api/attn/AARApproval/'; break;
       case 'Reimbursement': endpoint = 'api/reimapp/reimapproval/'; break;
-      case 'AssetRequest': endpoint = 'api/assetapp/assetapproval/'; break;
-      case 'AssetReturn': endpoint = 'api/assetrtnapp/assetrtnapproval/'; break;
+      case 'AssetRequest': endpoint = 'api/assetapp/submit/'; break;
+      case 'AssetReturn': endpoint = 'api/assetrtnapp/submit/'; break;
       case 'ITFile': endpoint = 'api/itfileapp/itfileapproval/'; break;
       case 'ShiftDeviation': endpoint = 'api/attn/ShiftDevApproval/'; break;
       case 'ProfileChange': endpoint = 'api/attn/EmpApproval/'; break;
@@ -284,6 +284,14 @@ class ApprovalService {
     return _fetchData('api/aar/empaarappcompleted/', fDate: fDate, tDate: tDate);
   }
 
+  // Advance Adjustment
+  Future<Map<String, dynamic>> getAdvanceAdjustmentApprovals() async {
+    return _fetchData('api/attn/AARApp/');
+  }
+  Future<Map<String, dynamic>> getCompletedAdvanceAdjustmentApprovals({String? fDate, String? tDate}) async {
+    return _fetchData('api/attn/aarappcompleted/', fDate: fDate, tDate: tDate);
+  }
+
   // Shift Deviation
   Future<Map<String, dynamic>> getShiftDevApprovals() async {
     return _fetchData('api/essshiftdev/getlistapp/');
@@ -296,8 +304,27 @@ class ApprovalService {
   Future<Map<String, dynamic>> getPermissionApprovals() async {
     return _fetchData('api/attn/empperapp/');
   }
+
   Future<Map<String, dynamic>> getCompletedPermissionApprovals({String? fDate, String? tDate}) async {
     return _fetchData('api/attn/empperappcompleted/', fDate: fDate, tDate: tDate);
+  }
+
+  // Asset Request
+  Future<Map<String, dynamic>> getAssetRequestApprovals() async {
+    return _fetchData('api/assetapp/app/');
+  }
+
+  Future<Map<String, dynamic>> getCompletedAssetRequestApprovals({String? fDate, String? tDate}) async {
+    return _fetchData('api/assetapp/appcompleted/', fDate: fDate, tDate: tDate);
+  }
+
+  // Asset Return
+  Future<Map<String, dynamic>> getAssetReturnApprovals() async {
+    return _fetchData('api/assetrtnapp/app/');
+  }
+
+  Future<Map<String, dynamic>> getCompletedAssetReturnApprovals({String? fDate, String? tDate}) async {
+    return _fetchData('api/assetrtnapp/appcompleted/', fDate: fDate, tDate: tDate);
   }
 
   Future<Map<String, dynamic>> _fetchData(String endpoint, {String? fDate, String? tDate}) async {

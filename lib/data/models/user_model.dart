@@ -1,3 +1,5 @@
+import '../services/auth_service.dart';
+
 class User {
   final String userid;
   final String token;
@@ -62,7 +64,7 @@ class User {
       'UserData_logintype': loginType,
       'UserData_dbname': dbName,
       'UserData_companyname': companyName,
-      'UserData_memberempcode': "0",
+      'UserData_memberempcode': AuthService.memberEmpCode,
       'UserData_essgroupcode': essGroupCode,
       'UserData_essgroupname': essGroupName,
       'UserData_LocIds': locIds,

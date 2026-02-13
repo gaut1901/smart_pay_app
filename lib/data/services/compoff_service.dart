@@ -39,7 +39,7 @@ class CompOffRequest {
 }
 
 class CompOffService {
-  Future<List<CompOffRequest>> getCompOffHistory() async {
+  Future<List<CompOffRequest>> getLeaveCompensationHistory() async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
 
@@ -57,14 +57,14 @@ class CompOffService {
         final List<dynamic> list = responseData['dtList'] ?? [];
         return list.map((item) => CompOffRequest.fromJson(item)).toList();
       } else {
-        throw Exception('Failed to load compensation history: ${response.statusCode}');
+        throw Exception('Failed to load leave compensation history: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<Map<String, dynamic>> getCompOffLookup({String action = 'Create'}) async {
+  Future<Map<String, dynamic>> getLeaveCompensationLookup({String action = 'Create'}) async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
 
@@ -80,14 +80,14 @@ class CompOffService {
         final data = jsonDecode(response.body);
         return jsonDecode(data['response']);
       } else {
-        throw Exception('Failed to load compensation lookup: ${response.statusCode}');
+        throw Exception('Failed to load leave compensation lookup: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<Map<String, dynamic>> getCompOffDetails(String id, String action) async {
+  Future<Map<String, dynamic>> getLeaveCompensationDetails(String id, String action) async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
 
@@ -103,37 +103,19 @@ class CompOffService {
         final data = jsonDecode(response.body);
         return jsonDecode(data['response']);
       } else {
-        throw Exception('Failed to load compensation details: ${response.statusCode}');
+        throw Exception('Failed to load leave compensation details: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<void> submitCompOffRequest({
-    required String sDate,
-    required String remarks,
-    required String status,
-    required String lrName,
-    String actions = "Add",
-    String editId = "",
-    String app = "-",
-  }) async {
+  Future<void> submitLeaveCompensation(Map<String, dynamic> postData) async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
 
     final url = Uri.parse('${ApiConfig.baseUrl}api/emplgreq/submit/');
     
-    final postData = {
-      "SDate": sDate,
-      "Remarks": remarks,
-      "Status": status,
-      "LRName": lrName,
-      "App": app,
-      "Actions": actions,
-      "EditId": editId
-    };
-
     try {
       final response = await http.post(
         url,

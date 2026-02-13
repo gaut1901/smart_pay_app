@@ -93,7 +93,7 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
       _historyError = null;
     });
     try {
-      final history = await _compOffService.getCompOffHistory();
+      final history = await _compOffService.getLeaveCompensationHistory();
       setState(() {
         _history = history;
         _filteredHistory = history;
@@ -111,7 +111,7 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
   Future<void> _fetchLookups() async {
     setState(() => _isLoadingLookups = true);
     try {
-      final lookupData = await _compOffService.getCompOffLookup();
+      final lookupData = await _compOffService.getLeaveCompensationLookup();
       setState(() {
         _leaveNames = lookupData['dtStatus'] ?? [];
         _reasons = lookupData['dtReason'] ?? [];
@@ -135,18 +135,14 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
     } catch (e) {
       setState(() => _isLoadingLookups = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load lookups: $e')),
-        );
+        UIConstants.showErrorSnackBar(context, 'Failed to load lookups: $e');
       }
     }
   }
 
   Future<void> _submitRequest() async {
     if (_selectedReason == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select Reason')),
-      );
+      UIConstants.showErrorSnackBar(context, 'Please select Reason');
       return;
     }
 
@@ -154,28 +150,31 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
 
     try {
       final dateFormat = DateFormat('dd-MM-yyyy');
-      await _compOffService.submitCompOffRequest(
-        sDate: dateFormat.format(_selectedDate),
-        status: _selectedLeaveName ?? "",
-        lrName: _selectedReason!,
-        remarks: _remarksController.text.trim(),
-        actions: _currentAction,
-        editId: _editId ?? '',
-      );
+      final Map<String, dynamic> postData = _editDetails != null 
+          ? Map<String, dynamic>.from(_editDetails!) 
+          : {};
+
+      postData["SDate"] = dateFormat.format(_selectedDate);
+      postData["Status"] = _selectedLeaveName ?? "";
+      postData["LRName"] = _selectedReason!;
+      postData["Remarks"] = _remarksController.text.trim();
+      postData["Actions"] = _currentAction;
+      postData["EditId"] = _editId ?? '';
+
+      await _compOffService.submitLeaveCompensation(postData);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Compensation request ${_currentAction == 'Create' ? 'submitted' : 'updated'} successfully')),
+        UIConstants.showSuccessSnackBar(
+          context, 
+          'Compensation request ${_currentAction == 'Create' ? 'submitted' : 'updated'} successfully'
         );
         _resetForm();
-        _fetchHistory();
+        await _fetchHistory();
         _tabController.animateTo(1);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-        );
+        UIConstants.showErrorSnackBar(context, e.toString().replaceAll('Exception: ', ''));
       }
     } finally {
       if (mounted) {
@@ -197,7 +196,7 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
   Future<void> _loadEditData(CompOffRequest item, String action) async {
     setState(() => _isLoadingHistory = true);
     try {
-      final details = await _compOffService.getCompOffDetails(item.id, action);
+      final details = await _compOffService.getLeaveCompensationDetails(item.id, action);
       setState(() {
         _currentAction = action;
         _editId = item.id;
@@ -217,7 +216,9 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
       });
     } catch (e) {
       setState(() => _isLoadingHistory = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading details: $e')));
+      if (mounted) {
+        UIConstants.showErrorSnackBar(context, 'Error loading details: $e');
+      }
     }
   }
 
@@ -226,7 +227,7 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
       context: context,
       title: 'Leave Compensation Details',
       body: FutureBuilder<Map<String, dynamic>>(
-        future: _compOffService.getCompOffDetails(item.id, 'View'),
+        future: _compOffService.getLeaveCompensationDetails(item.id, 'View'),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()));
@@ -273,25 +274,16 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
               setState(() => _isLoadingHistory = true);
               try {
                 // Fetch details first to get necessary fields for delete payload
-                final details = await _compOffService.getCompOffDetails(item.id, 'Delete');
-                
-                await _compOffService.submitCompOffRequest(
-                  sDate: details['SDate'],
-                  remarks: details['Remarks'] ?? "",
-                  status: details['Status'] ?? "",
-                  lrName: details['LRName'],
-                  actions: action,
-                  editId: item.id,
-                  app: details['App'] ?? "-",
-                );
-                _fetchHistory();
+                final details = await _compOffService.getLeaveCompensationDetails(item.id, action);
+                await _compOffService.submitLeaveCompensation(details);
+                await _fetchHistory();
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Request $action successfully')));
+                  UIConstants.showSuccessSnackBar(context, 'Request $action successfully');
                 }
               } catch (e) {
                 setState(() => _isLoadingHistory = false);
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  UIConstants.showErrorSnackBar(context, 'Error: $e');
                 }
               }
             },

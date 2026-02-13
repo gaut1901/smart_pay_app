@@ -89,6 +89,9 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
         case 'Permission':
           data = await _approvalService.getPermissionApprovals();
           break;
+        case 'AdvAdj':
+          data = await _approvalService.getAdvanceAdjustmentApprovals();
+          break;
         default:
           // Fallback or specific generic list
           // For now, let's assume getLeaveApprovals logic or empty
@@ -140,6 +143,9 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
           break;
         case 'Permission':
           data = await _approvalService.getCompletedPermissionApprovals(fDate: fDate, tDate: tDate);
+          break;
+        case 'AdvAdj':
+          data = await _approvalService.getCompletedAdvanceAdjustmentApprovals(fDate: fDate, tDate: tDate);
           break;
         default:
           break;
