@@ -525,10 +525,10 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
                           DataColumn(label: Text('TICKET NO', style: UIConstants.tableHeaderStyle)),
                           DataColumn(label: Text('EMP NAME', style: UIConstants.tableHeaderStyle)),
                           DataColumn(label: Text('DATE', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('DEDUCTION', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('DEDUCTION NAME', style: UIConstants.tableHeaderStyle)),
                           DataColumn(label: Text('AMOUNT', style: UIConstants.tableHeaderStyle)),
                           DataColumn(label: Text('STATUS', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('APP.BY', style: UIConstants.tableHeaderStyle)),
+                          DataColumn(label: Text('BY', style: UIConstants.tableHeaderStyle)),
                           DataColumn(label: Text('ACTIONS', style: UIConstants.tableHeaderStyle)),
                         ],
                         rows: _filteredHistory.map((item) {
@@ -660,22 +660,36 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
     );
   }
 
-  Widget _buildDropdownField(String label, List<String> items, String? value, Function(String?) onChanged) {
+  Widget _buildDropdownField(String label, List<String> items, String? value, Function(String?) onChanged, {bool isReadOnly = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 8),
+        if (label.isNotEmpty) ...[
+            Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+        ],
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300), 
+              borderRadius: BorderRadius.circular(8),
+              color: isReadOnly ? Colors.grey.shade100 : null,
+          ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               isExpanded: true,
               value: value,
               hint: const Text('Select option'),
-              items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-              onChanged: onChanged,
+              items: items.map((e) => DropdownMenuItem(
+                  value: e, 
+                  child: Text(
+                      e, 
+                      maxLines: 1, 
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14),
+                  )
+              )).toList(),
+              onChanged: isReadOnly ? null : onChanged,
             ),
           ),
         ),

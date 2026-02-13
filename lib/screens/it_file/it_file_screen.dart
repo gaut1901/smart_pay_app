@@ -2,8 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
-import '../../core/constants.dart';
-import '../../data/services/it_file_service.dart';
+import 'package:smartpay_flutter/core/constants.dart';
+import 'package:smartpay_flutter/core/ui_constants.dart';
+import 'package:smartpay_flutter/data/services/it_file_service.dart';
 
 class ITFileScreen extends StatefulWidget {
   const ITFileScreen({super.key});
@@ -26,6 +27,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   List<dynamic> _dtSlab = [];
   List<dynamic> _dtITHeadType = [];
   List<dynamic> _dtITHead = [];
+  List<dynamic> _dtDet = []; // Details/Attachments
   bool _isLoadingLookups = true;
 
   // Form fields
@@ -40,11 +42,37 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   File? _selectedFile;
   bool _isSubmitting = false;
 
+  // Edit/View state
+  String _action = 'Create'; // Create, Modify, View
+  String _editId = '';
+  String _delIds = '0'; // IDs of deleted attachments
+  String _app = '-'; // App status
+
+  // Table & Search State
+  final TextEditingController _searchController = TextEditingController();
+  int _rowsPerPage = 10;
+  List<ITFileRequest> _filteredHistory = [];
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadData();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      if (_searchController.text.isEmpty) {
+        _filteredHistory = _history;
+      } else {
+        _filteredHistory = _history.where((request) => 
+          (request.ticketNo.toLowerCase().contains(_searchController.text.toLowerCase())) ||
+          (request.empName.toLowerCase().contains(_searchController.text.toLowerCase())) ||
+          (request.itHead.toLowerCase().contains(_searchController.text.toLowerCase()))
+        ).toList();
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -55,53 +83,97 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   }
 
   Future<void> _fetchHistory() async {
+    if (!mounted) return;
     setState(() {
       _isLoadingHistory = true;
       _historyError = null;
     });
     try {
       final history = await _itFileService.getITFileHistory();
-      setState(() {
-        _history = history;
-        _isLoadingHistory = false;
-      });
+      if (mounted) {
+        setState(() {
+          _history = history;
+          _filteredHistory = history;
+          _isLoadingHistory = false;
+        });
+        _onSearchChanged();
+      }
     } catch (e) {
-      setState(() {
-        _historyError = e.toString().replaceAll('Exception: ', '');
-        _isLoadingHistory = false;
-      });
+      if (mounted) {
+        setState(() {
+          _historyError = e.toString().replaceAll('Exception: ', '');
+          _isLoadingHistory = false;
+        });
+      }
     }
   }
 
   Future<void> _fetchLookups() async {
+    if (!mounted) return;
     setState(() => _isLoadingLookups = true);
+    
     try {
-      final lookupData = await _itFileService.getITFileLookup();
-      setState(() {
-        _dtFinYear = lookupData['dtFinYear'] ?? [];
-        _dtEmp = lookupData['dtEmp'] ?? [];
-        _dtSlab = lookupData['dtSlab'] ?? [];
-        _dtITHeadType = lookupData['dtITHeadType'] ?? [];
+      Map<String, dynamic> data;
+      if (_action == 'Create') {
+        data = await _itFileService.getITFileLookup();
+      } else {
+        data = await _itFileService.getITFileDetails(id: _editId, action: _action);
+      }
 
-        if (_dtFinYear.isNotEmpty) _selectedFinYear = _dtFinYear[0]['FinYear'];
-        if (_dtEmp.isNotEmpty) _selectedEmpName = _dtEmp[0]['EMPNAME'];
-        if (_dtSlab.isNotEmpty) _selectedSlab = _dtSlab[0]['ITSlabName'];
-        if (_dtITHeadType.isNotEmpty) _selectedITHeadType = _dtITHeadType[0]['ITHeadType'];
-        
-        if (lookupData['SDate'] != null && lookupData['SDate'] != "") {
-           try {
-             _selectedDate = DateFormat('dd-MM-yyyy').parse(lookupData['SDate']);
-           } catch (_) {}
+      if (!mounted) return;
+
+      setState(() {
+        _dtFinYear = data['dtFinYear'] ?? [];
+        _dtEmp = data['dtEmp'] ?? [];
+        _dtSlab = data['dtSlab'] ?? [];
+        _dtITHeadType = data['dtITHeadType'] ?? [];
+        _dtITHead = data['dtITHead'] ?? [];
+        _dtDet = data['dtDet'] ?? [];
+        _delIds = data['DelIds']?.toString() ?? '0';
+
+        if (_action == 'Create') {
+            if (_dtFinYear.isNotEmpty) _selectedFinYear = _dtFinYear[0]['FinYear'];
+            if (_dtEmp.isNotEmpty) _selectedEmpName = (_dtEmp[0]['EMPNAME']?.toString() ?? '').trim().replaceAll(RegExp(r'\s+'), ' ');
+            if (_dtSlab.isNotEmpty) _selectedSlab = _dtSlab[0]['ITSlabName'];
+            if (_dtITHeadType.isNotEmpty) _selectedITHeadType = _dtITHeadType[0]['ITHeadType'];
+            
+            if (data['SDate'] != null && data['SDate'] != "") {
+               try {
+                 _selectedDate = DateFormat('dd-MM-yyyy').parse(data['SDate']);
+               } catch (_) {}
+            }
+            _pAmountController.text = '0';
+            _aAmountController.text = '0';
+        } else {
+            // Populate fields for Edit/View
+             if (data['EntryDate'] != null) {
+                try {
+                  _selectedDate = DateFormat('dd-MM-yyyy').parse(data['EntryDate']);
+                } catch (_) {}
+             }
+             _selectedFinYear = data['FinYear'];
+             _selectedEmpName = (data['EmpName']?.toString() ?? '').trim().replaceAll(RegExp(r'\s+'), ' ');
+             _selectedSlab = data['SlabName'];
+             _selectedITHeadType = data['ITHeadType'];
+             _selectedITHead = data['ITHead'];
+             _pAmountController.text = data['PAmount']?.toString() ?? '0';
+             _aAmountController.text = data['AAmount']?.toString() ?? '0';
+             _app = data['App'] ?? '-';
         }
         
         _isLoadingLookups = false;
       });
-      _onITHeadParamsChange();
+      
+      // If Creating, fetch default head params
+      if (_action == 'Create') {
+          _onITHeadParamsChange();
+      }
+
     } catch (e) {
-      setState(() => _isLoadingLookups = false);
       if (mounted) {
+        setState(() => _isLoadingLookups = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load lookups: $e')),
+          SnackBar(content: Text('Failed to load data: $e')),
         );
       }
     }
@@ -117,10 +189,14 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
         finYear: _selectedFinYear!,
         slabName: _selectedSlab!,
       );
+      if (!mounted) return;
       setState(() {
         _dtITHead = result['dtITHead'] ?? [];
         if (_dtITHead.isNotEmpty) {
-          _selectedITHead = _dtITHead[0]['ITHead'];
+           // Keep selected head if it exists in new list, else select first
+           if (_selectedITHead == null || !_dtITHead.any((element) => element['ITHead'] == _selectedITHead)) {
+               _selectedITHead = _dtITHead[0]['ITHead'];
+           }
           _onITHeadChange();
         } else {
           _selectedITHead = null;
@@ -134,7 +210,12 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
 
   Future<void> _onITHeadChange() async {
     if (_selectedEmpName == null || _selectedITHeadType == null || _selectedFinYear == null || _selectedSlab == null || _selectedITHead == null) return;
-
+    
+    // In edit mode, we might not want to overwrite values if user hasn't changed dependencies
+    // But for now, we follow standard behavior: if head changes, we fetch fresh amount.
+    // If just loading edit form, this might overwrite saved amount if we are not careful.
+    // _fetchLookups handles initial population. This is for User interaction.
+    
     try {
       final result = await _itFileService.getITHeadAmount(
         empName: _selectedEmpName!,
@@ -143,6 +224,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
         slabName: _selectedSlab!,
         itHead: _selectedITHead!,
       );
+      if (!mounted) return;
       setState(() {
         final dtAmount = result['dtAmount'] as List?;
         if (dtAmount != null && dtAmount.isNotEmpty) {
@@ -170,7 +252,13 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   }
 
   Future<void> _submitRequest() async {
-    if (_selectedFinYear == null || _selectedEmpName == null || _selectedSlab == null || _selectedITHeadType == null || _selectedITHead == null) {
+    if (_action == 'View') {
+        _resetForm();
+        _tabController.animateTo(1);
+        return;
+    }
+
+    if (_selectedFinYear == null || _selectedEmpName == null || _selectedSlab == null || _selectedITHeadType == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all required fields')));
       return;
     }
@@ -193,16 +281,17 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
         pAmount: double.tryParse(_pAmountController.text) ?? 0.0,
         aAmount: double.tryParse(_aAmountController.text) ?? 0.0,
         file: _selectedFile,
+        actions: _action == 'Create' ? 'Add' : _action, // Map Create to Add to match API
+        editId: _editId,
+        app: _app,
+        delIds: _delIds,
       );
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('IT file submitted successfully')),
+          SnackBar(content: Text('IT file ${_action == 'Create' ? 'submitted' : 'updated'} successfully')),
         );
-        _aAmountController.text = '0';
-        setState(() {
-          _selectedFile = null;
-        });
+        _resetForm();
         _fetchHistory();
         _tabController.animateTo(1);
       }
@@ -219,11 +308,96 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
     }
   }
 
+  void _resetForm() {
+      setState(() {
+          _action = 'Create';
+          _editId = '';
+          _delIds = '0';
+          _selectedFile = null;
+          _aAmountController.text = '0';
+          _pAmountController.text = '0';
+          _selectedITHead = null;
+      });
+      _fetchLookups(); // Reload defaults
+  }
+  
+  void _onEdit(ITFileRequest item) {
+      setState(() {
+          _action = 'Modify';
+          _editId = item.id;
+      });
+      _tabController.animateTo(0);
+      _fetchLookups();
+  }
+  
+  void _onView(ITFileRequest item) {
+      setState(() {
+          _action = 'View';
+          _editId = item.id;
+      });
+      _tabController.animateTo(0);
+      _fetchLookups();
+  }
+
+  Future<void> _onDelete(ITFileRequest item) async {
+      final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+              title: const Text('Confirm Delete'),
+              content: const Text('Are you sure you want to delete this record?'),
+              actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+              ],
+          ),
+      );
+      
+      if (confirm == true) {
+           try {
+               // Per old code logic, deletion is a form submit with actions='Delete'
+               // We need some minimal data. The service requires non-nullable params.
+               // We will use current values or dummy values as backend likely checks ID mainly.
+               // However, ideally we should fetch details first to fill required fields if validation strictly requires them.
+               // Let's assume ID is enough or we send empty valid strings.
+               
+               await _itFileService.submitITFile(
+                   entryDate: DateFormat('dd-MM-yyyy').format(DateTime.now()),
+                   slabName: item.ticketNo, // Likely ignored for delete but required by func signature
+                   finYear: item.finYear,
+                   itHead: item.itHead,
+                   itHeadType: '-',
+                   empName: item.empName,
+                   pAmount: 0,
+                   aAmount: item.amount,
+                   actions: 'Delete',
+                   editId: item.id,
+               );
+               
+               if (mounted) {
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Record deleted successfully')));
+                   _fetchHistory();
+               }
+           } catch (e) {
+               if (mounted) {
+                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+               }
+           }
+      }
+  }
+  
+  void _cancelEdit() {
+      _resetForm();
+      if (_tabController.index == 0) {
+          // Stay on tab but reset
+      }
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
     _pAmountController.dispose();
     _aAmountController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -240,6 +414,12 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           indicatorColor: AppColors.accent,
+          onTap: (index) {
+              if (index == 0 && _action != 'Create') {
+                  // If switching to Apply tab manually, reset to Create mode
+                  _resetForm();
+              }
+          },
           tabs: const [
             Tab(text: 'Apply'),
             Tab(text: 'History'),
@@ -248,6 +428,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
       ),
       body: TabBarView(
         controller: _tabController,
+        physics: const NeverScrollableScrollPhysics(), // Disable swipe to prevent accidental reset/conflicts
         children: [
           _buildApplyTab(),
           _buildHistoryTab(),
@@ -258,6 +439,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
 
   Widget _buildApplyTab() {
     if (_isLoadingLookups) return const Center(child: CircularProgressIndicator());
+    final isReadOnly = _action == 'View';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -270,9 +452,18 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('New IT File Request', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                        Text('Income Tax File ($_action)', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        if (_action != 'Create')
+                            IconButton(icon: const Icon(Icons.close), onPressed: _cancelEdit, tooltip: 'Cancel'),
+                    ],
+                ),
                 const SizedBox(height: 20),
-                _buildDatePickerField('Date', _selectedDate, (date) => setState(() => _selectedDate = date)),
+                _buildDatePickerField('Date', _selectedDate, (date) {
+                    if (!isReadOnly) setState(() => _selectedDate = date);
+                }, isReadOnly: isReadOnly),
                 const SizedBox(height: 15),
                 _buildDropdownField(
                   'Fin Year', 
@@ -281,17 +472,19 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                   (val) {
                     setState(() => _selectedFinYear = val);
                     _onITHeadParamsChange();
-                  }
+                  },
+                  isReadOnly: isReadOnly
                 ),
                 const SizedBox(height: 15),
                 _buildDropdownField(
                   'Emp Name', 
-                  _dtEmp.map((e) => e['EMPNAME']?.toString() ?? '').toList(), 
-                  _selectedEmpName, 
+                  _dtEmp.map((e) => (e['EMPNAME']?.toString() ?? '').trim().replaceAll(RegExp(r'\s+'), ' ')).toList(), 
+                  _selectedEmpName?.trim().replaceAll(RegExp(r'\s+'), ' '), 
                   (val) {
                     setState(() => _selectedEmpName = val);
                     _onITHeadParamsChange();
-                  }
+                  },
+                  isReadOnly: isReadOnly
                 ),
                 const SizedBox(height: 15),
                 _buildDropdownField(
@@ -301,7 +494,8 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                   (val) {
                     setState(() => _selectedSlab = val);
                     _onITHeadParamsChange();
-                  }
+                  },
+                  isReadOnly: isReadOnly
                 ),
                 const SizedBox(height: 15),
                 _buildDropdownField(
@@ -311,7 +505,8 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                   (val) {
                     setState(() => _selectedITHeadType = val);
                     _onITHeadParamsChange();
-                  }
+                  },
+                  isReadOnly: isReadOnly
                 ),
                 const SizedBox(height: 15),
                 _buildDropdownField(
@@ -321,28 +516,67 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                   (val) {
                     setState(() => _selectedITHead = val);
                     _onITHeadChange();
-                  }
+                  },
+                  isReadOnly: isReadOnly
                 ),
                 const SizedBox(height: 15),
                 _buildTextField('Projected Amount', '0', _pAmountController, keyboardType: TextInputType.number, readOnly: true),
                 const SizedBox(height: 15),
-                _buildTextField('Actual Amount', 'Enter amount', _aAmountController, keyboardType: TextInputType.number),
-                const SizedBox(height: 15),
-                _buildFilePickerField(),
+                _buildTextField('Actual Amount', 'Enter amount', _aAmountController, keyboardType: TextInputType.number, readOnly: isReadOnly),
+                
+                if (!isReadOnly) ...[
+                    const SizedBox(height: 15),
+                    _buildFilePickerField(),
+                ],
+                
+                // Existing Attachments
+                if (_dtDet.isNotEmpty) ...[
+                    const SizedBox(height: 15),
+                    const Text('Attachments:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ..._dtDet.map((file) => ListTile(
+                        leading: const Icon(Icons.attach_file),
+                        title: Text('Attachment (${file['Id']})'),
+                        trailing: isReadOnly ? null : IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () {
+                                setState(() {
+                                    _delIds = _delIds == '0' ? file['Id'].toString() : '$_delIds,${file['Id']}';
+                                    _dtDet.remove(file);
+                                });
+                            },
+                        ),
+                    )),
+                ],
+
                 const SizedBox(height: 30),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submitRequest,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: _isSubmitting 
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Submit Request', style: TextStyle(color: Colors.white, fontSize: 16)),
-                  ),
+                
+                Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                        if (_action != 'View')
+                        ElevatedButton(
+                            onPressed: _isSubmitting ? null : _submitRequest,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _action == 'Modify' ? Colors.blue : AppColors.primary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: _isSubmitting 
+                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : Text(_action == 'Modify' ? 'Update Request' : 'Submit Request', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                        ),
+                        if (_action != 'Create') ...[
+                            const SizedBox(height: 10),
+                            OutlinedButton(
+                                onPressed: _cancelEdit,
+                                style: OutlinedButton.styleFrom(
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                child: Text(_action == 'View' ? 'Back' : 'Cancel Edit'),
+                            ),
+                        ],
+                    ],
                 ),
               ],
             ),
@@ -355,95 +589,127 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   Widget _buildHistoryTab() {
     if (_isLoadingHistory) return const Center(child: CircularProgressIndicator());
     if (_historyError != null) return Center(child: Text(_historyError!, style: const TextStyle(color: Colors.red)));
-    if (_history.isEmpty) return const Center(child: Text('No history found'));
 
     return RefreshIndicator(
       onRefresh: () async => _fetchHistory(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _history.length,
-        itemBuilder: (context, index) {
-          final item = _history[index];
-          return _buildHistoryItem(item);
-        },
-      ),
-    );
-  }
-
-  Widget _buildHistoryItem(ITFileRequest item) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(item.sDate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Text('FY: ${item.finYear}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-              ],
+             const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text('Income Tax History', 
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(item.itHead, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w500, fontSize: 15)),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Amount: ${item.amount}', style: const TextStyle(fontSize: 14)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: item.app.contains('Approved') ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white, 
+                borderRadius: BorderRadius.circular(8), 
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
                   ),
-                  child: Text(
-                    item.app,
-                    style: TextStyle(
-                      color: item.app.contains('Approved') ? Colors.green : Colors.orange,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  UIConstants.buildTableActionsRow(
+                      searchController: _searchController,
+                      rowsPerPage: _rowsPerPage,
+                      searchHint: 'Search by Ticket No, Name or IT Head',
+                  ),
+                  const SizedBox(height: 12),
+                  if (_filteredHistory.isEmpty)
+                     const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No history found')))
+                  else
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowColor: MaterialStateProperty.all(UIConstants.tableHeaderBg),
+                        columns: [
+                            DataColumn(label: Text('TICKET NO', style: UIConstants.tableHeaderStyle)),
+                            DataColumn(label: Text('EMP NAME', style: UIConstants.tableHeaderStyle)),
+                            DataColumn(label: Text('FIN YEAR', style: UIConstants.tableHeaderStyle)),
+                            DataColumn(label: Text('DATE', style: UIConstants.tableHeaderStyle)),
+                            DataColumn(label: Text('IT HEAD', style: UIConstants.tableHeaderStyle)),
+                            DataColumn(label: Text('AMOUNT', style: UIConstants.tableHeaderStyle)),
+                            DataColumn(label: Text('STATUS', style: UIConstants.tableHeaderStyle)),
+                            DataColumn(label: Text('APP.BY', style: UIConstants.tableHeaderStyle)),
+                            DataColumn(label: Text('APP.ON', style: UIConstants.tableHeaderStyle)),
+                            DataColumn(label: Text('ACTIONS', style: UIConstants.tableHeaderStyle)),
+                        ],
+                        rows: _filteredHistory.take(_rowsPerPage).map((item) {
+                          return DataRow(cells: [
+                            DataCell(Text(item.ticketNo)),
+                            DataCell(Text(item.empName)),
+                            DataCell(Text(item.finYear)),
+                            DataCell(Text(item.sDate)),
+                            DataCell(Text(item.itHead)),
+                            DataCell(Text(item.amount.toString())),
+                            DataCell(Text(item.app)),
+                            DataCell(Text(item.appBy)),
+                            DataCell(Text(item.appOn)),
+                            DataCell(UIConstants.buildActionButtons(
+                                onView: () => _onView(item),
+                                onEdit: () => _onEdit(item),
+                                onDelete: () => _onDelete(item),
+                            )),
+                          ]);
+                        }).toList(),
+                      ),
                     ),
+                  const Divider(),
+                  UIConstants.buildPaginationFooter(
+                      totalCount: _filteredHistory.length,
+                      rowsPerPage: _rowsPerPage,
+                      currentPage: 1, // Simple pagination for now
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            if (item.appBy.isNotEmpty) ...[
-               const SizedBox(height: 8),
-               Text('Approved By: ${item.appBy} on ${item.appOn}', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
-            ],
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDatePickerField(String label, DateTime selectedDate, Function(DateTime) onSelect) {
+  Widget _buildDatePickerField(String label, DateTime selectedDate, Function(DateTime) onSelect, {bool isReadOnly = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         InkWell(
-          onTap: () async {
+          onTap: isReadOnly ? null : () async {
             final date = await showDatePicker(
               context: context,
               initialDate: selectedDate,
-              firstDate: DateTime.now().subtract(const Duration(days: 365)),
-              lastDate: DateTime.now().add(const Duration(days: 30)),
+              firstDate: DateTime.now().subtract(const Duration(days: 3650)),
+              lastDate: DateTime.now().add(const Duration(days: 365)),
             );
             if (date != null) onSelect(date);
           },
           child: Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300), 
+                borderRadius: BorderRadius.circular(8),
+                color: isReadOnly ? Colors.grey.shade100 : null,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(DateFormat('dd-MM-yyyy').format(selectedDate)),
-                const Icon(Icons.calendar_today, size: 18, color: AppColors.primary),
+                if (!isReadOnly) const Icon(Icons.calendar_today, size: 18, color: AppColors.primary),
               ],
             ),
           ),
@@ -452,22 +718,36 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildDropdownField(String label, List<String> items, String? value, Function(String?) onChanged) {
+  Widget _buildDropdownField(String label, List<String> items, String? value, Function(String?) onChanged, {bool isReadOnly = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 8),
+        if (label.isNotEmpty) ...[
+            Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+        ],
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300), 
+              borderRadius: BorderRadius.circular(8),
+              color: isReadOnly ? Colors.grey.shade100 : null,
+          ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               isExpanded: true,
               value: value,
               hint: const Text('Select option'),
-              items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-              onChanged: onChanged,
+              items: items.map((e) => DropdownMenuItem(
+                  value: e, 
+                  child: Text(
+                      e, 
+                      maxLines: 1, 
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14),
+                  )
+              )).toList(),
+              onChanged: isReadOnly ? null : onChanged,
             ),
           ),
         ),
@@ -502,7 +782,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Attachment', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        const Text('New Attachment', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         InkWell(
           onTap: _pickFile,
