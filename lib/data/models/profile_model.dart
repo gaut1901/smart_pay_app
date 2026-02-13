@@ -61,6 +61,18 @@ class ProfileModel {
   final String? resignDate;
   final String? resignReasonHead;
   final String? resignReason;
+  // New fields
+  final String? ticketNo1;
+  final String? pfDate;
+  final String? esiDate;
+  final String? weeklyOff1;
+  final String? weeklyOff2;
+  final String? shiftGroup;
+  final String? itSlabName;
+  final String? policyName;
+  final bool isBonus;
+  final String? cadreName;
+  final String? levelName;
 
   final bool empPortal;
   final String? userName;
@@ -145,6 +157,17 @@ class ProfileModel {
     this.resignDate,
     this.resignReasonHead,
     this.resignReason,
+    this.ticketNo1,
+    this.pfDate,
+    this.esiDate,
+    this.weeklyOff1,
+    this.weeklyOff2,
+    this.shiftGroup,
+    this.itSlabName,
+    this.policyName,
+    this.isBonus = false,
+    this.cadreName,
+    this.levelName,
     this.empPortal = false,
     this.userName,
     this.password,
@@ -233,6 +256,17 @@ class ProfileModel {
       resignDate: json['ResignDate']?.toString(),
       resignReasonHead: json['ResignReasonHead']?.toString(),
       resignReason: json['ResignReason']?.toString(),
+      ticketNo1: json['TicketNo1']?.toString(),
+      pfDate: json['PFDate']?.toString(),
+      esiDate: json['ESIDate']?.toString(),
+      weeklyOff1: json['WeeklyOff1']?.toString(),
+      weeklyOff2: json['WeeklyOff2']?.toString(), // Assuming this exists or similar
+      shiftGroup: json['ShiftGroup']?.toString(),
+      itSlabName: json['ITSlabName']?.toString(),
+      policyName: json['PolicyName']?.toString(),
+      isBonus: json['isBonus'] == true || json['isBonus'] == 'true',
+      cadreName: json['CadreName']?.toString(),
+      levelName: json['LevelName']?.toString(),
       empPortal: json['EmpPortal'] == true || json['EmpPortal'] == 'true',
       userName: json['UserName']?.toString(),
       password: json['Password']?.toString(),
@@ -331,6 +365,17 @@ class ProfileModel {
       "ResignDate": resignDate,
       "ResignReasonHead": resignReasonHead,
       "ResignReason": resignReason,
+      "TicketNo1": ticketNo1,
+      "PFDate": pfDate,
+      "ESIDate": esiDate,
+      "WeeklyOff1": weeklyOff1,
+      "WeeklyOff2": weeklyOff2,
+      "ShiftGroup": shiftGroup,
+      "ITSlabName": itSlabName,
+      "PolicyName": policyName,
+      "isBonus": isBonus,
+      "CadreName": cadreName,
+      "LevelName": levelName,
       "EmpPortal": empPortal,
       "UserName": userName,
       "Password": password,

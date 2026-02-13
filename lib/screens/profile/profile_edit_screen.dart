@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'dart:convert'; // Added for base64
 import '../../core/constants.dart';
 import '../../data/models/profile_model.dart';
 import '../../data/services/profile_service.dart';
@@ -91,6 +92,45 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   String? _selectedNationality;
   bool _sameAddress = false;
 
+  // New Controllers
+  final TextEditingController _ticketNo1Controller = TextEditingController();
+  final TextEditingController _altMobileController = TextEditingController();
+  final TextEditingController _pfDateController = TextEditingController();
+  final TextEditingController _esiDateController = TextEditingController();
+  final TextEditingController _weeklyOff1Controller = TextEditingController();
+  final TextEditingController _weeklyOff2Controller = TextEditingController();
+  final TextEditingController _shiftGroupController = TextEditingController();
+  final TextEditingController _itSlabController = TextEditingController();
+  final TextEditingController _policyNameController = TextEditingController();
+  final TextEditingController _reportingPersonController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _empTypeController = TextEditingController();
+  final TextEditingController _payGroupController = TextEditingController();
+  final TextEditingController _departmentController = TextEditingController();
+  final TextEditingController _designationController = TextEditingController();
+  final TextEditingController _dojController = TextEditingController();
+
+  // Dropped/Renamed/Moved Controllers:
+  // _nationalityController - Removed
+  // _spouseNameController - Removed
+  // _cugNoController - Moved to Official Info
+  // _officeEmailController - Moved to Official Info
+
+  // State Variables
+  bool _isBonus = false;
+  String? _selectedCadre;
+  String? _selectedLevel;
+  
+  // Avatar Editing State
+  bool _isEditingAvatar = false;
+  File? _avatarFile;
+
+  // Static Lists
+  final List<String> _relationList = ['Wife', 'Husband', 'Son', 'Daughter', 'Father', 'Mother', 'Grand Father', 'Grand Mother'];
+  final List<String> _cadreList = ['C1', 'C2', 'C3', 'C4', 'C5', 'NONE'];
+  final List<String> _levelList = ['L5', 'L6', 'L7', 'L8', 'L9', 'NONE'];
+  final List<String> _degreeTypeList = ['High School', 'Undergraduate', 'Postgraduate', 'Certificate Course'];
+
   @override
   void initState() {
     super.initState();
@@ -149,9 +189,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         _dlExpDateController.text = _profileData?.dlExpDate ?? '';
         _passportExpDateController.text = _profileData?.passportExpDate ?? '';
         _dobController.text = _profileData?.dob ?? '';
-        _nationalityController.text = _profileData?.nationality ?? '';
-        _religionController.text = _profileData?.reliName ?? '';
-        _spouseNameController.text = _profileData?.hName ?? '';
+        // Removed nationality and spouse binding
+
         _cugNoController.text = _profileData?.cugNo ?? '';
         _officeEmailController.text = _profileData?.officeEmail ?? '';
         _bankNameController.text = _profileData?.bankName ?? '';
@@ -163,10 +202,40 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         _medicalIssuesController.text = _profileData?.medicalIssues ?? '';
         _incDateController.text = _profileData?.incDate ?? '';
 
+        _ticketNo1Controller.text = _profileData?.ticketNo1 ?? '';
+        _altMobileController.text = ''; // Not in model yet, placeholder
+        
+        // Official Info
+        _locationController.text = _profileData?.locName ?? '';
+        _empTypeController.text = _profileData?.extraData['EmpType']?.toString() ?? ''; // Check binding
+        _payGroupController.text = ''; // Bind from somewhere if available
+        _departmentController.text = _profileData?.deptName ?? '';
+        _designationController.text = _profileData?.desName ?? '';
+        _weeklyOff1Controller.text = _profileData?.weeklyOff1 ?? '';
+        _weeklyOff2Controller.text = _profileData?.weeklyOff2 ?? '';
+        _reportingPersonController.text = _profileData?.hodName ?? '';
+        _shiftGroupController.text = _profileData?.shiftGroup ?? '';
+        _bankNameController.text = _profileData?.bankName ?? '';
+        _accountNoController.text = _profileData?.accountNo ?? '';
+        _ifsCodeController.text = _profileData?.ifsCode ?? '';
+        _itSlabController.text = _profileData?.itSlabName ?? '';
+        _officeEmailController.text = _profileData?.officeEmail ?? '';
+        _cugNoController.text = _profileData?.cugNo ?? '';
+        _policyNameController.text = _profileData?.policyName ?? '';
+        _dojController.text = _profileData?.doj ?? '';
+        
+        _pfDateController.text = _profileData?.pfDate ?? '';
+        _esiDateController.text = _profileData?.esiDate ?? '';
+
         _resignDateController.text = _profileData?.resignDate ?? '';
         _resignReasonHeadController.text = _profileData?.resignReasonHead ?? '';
         _resignReasonController.text = _profileData?.resignReason ?? '';
+
         _isResign = _profileData?.isResign ?? false;
+        _isBonus = _profileData?.isBonus ?? false; // Toggle
+        _selectedCadre = _profileData?.cadreName;
+        _selectedLevel = _profileData?.levelName;
+        _selectedReligion = _profileData?.reliName;
 
         _userNameController.text = _profileData?.userName ?? '';
         _passwordController.text = _profileData?.password ?? '';
@@ -438,12 +507,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildSectionHeader('Basic Information'),
-                        _buildTextField('Prefix', _prefixController),
+                        _buildTextField('Prefix', _prefixController, readOnly: true), // Assuming prefix is read only as per "Bind value... both field not editable" context? No, specifically Emp No is read only.
+                        // Emp No
+                        _buildTextField('Emp No', _ticketNo1Controller, readOnly: true, fillColor: Colors.grey[200]),
+                        
                         _buildTextField('First Name', _fNameController, required: true),
                         _buildTextField('Middle Name', _mNameController),
                         _buildTextField('Last Name', _lNameController, required: true),
                         _buildTextField('Father\'s Name', _fatherNameController),
-                        _buildTextField('Spouse Name', _spouseNameController),
+                        // Removed Spouse, Nationality as per request
+
                         _buildDateField('Date of Birth', _dobController),
                         
                         Row(
@@ -455,43 +528,24 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                         ),
                         
                         _buildDropdown('Blood Group', _selectedBloodGroup, bloodGroupList, (val) => setState(() => _selectedBloodGroup = val)),
-                        
-                        Row(
-                          children: [
-                            Expanded(
-                              child: nationalityList.isNotEmpty 
-                                ? _buildDropdown('Nationality', _selectedNationality, nationalityList, (val) {
-                                    setState(() {
-                                      _selectedNationality = val;
-                                      _nationalityController.text = val ?? '';
-                                    });
-                                  })
-                                : _buildTextField('Nationality', _nationalityController),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: religionList.isNotEmpty
-                                ? _buildDropdown('Religion', _selectedReligion, religionList, (val) {
-                                    setState(() {
-                                      _selectedReligion = val;
-                                      _religionController.text = val ?? '';
-                                    });
-                                  })
-                                : _buildTextField('Religion', _religionController),
-                            ),
-                          ],
-                        ),
 
                         _buildSectionHeader('Contact Details'),
+                        // Removed CUG No from here
+                        // Merged Email
+                        _buildTextField('Email', _emailController, required: true, keyboardType: TextInputType.emailAddress),
+                        
                         _buildTextField('Mobile No', _phoneController, required: true, keyboardType: TextInputType.phone),
-                        _buildTextField('CUG No', _cugNoController, keyboardType: TextInputType.phone),
-                        _buildTextField('Personal Email', _emailController, required: true, keyboardType: TextInputType.emailAddress),
-                        _buildTextField('Official Email', _officeEmailController, keyboardType: TextInputType.emailAddress),
+                        _buildTextField('Alternate Mobile No', _altMobileController, keyboardType: TextInputType.phone),
 
                         _buildSectionHeader('Emergency Contact'),
                         _buildTextField('Contact Name', _eContactNameController),
                         _buildTextField('Contact Number', _eContactNumberController, keyboardType: TextInputType.phone),
-                        _buildTextField('Relation', _eContactRelationController),
+                        // Relation as list select
+                        _buildDropdown('Relation', _eContactRelationController.text.isNotEmpty ? _eContactRelationController.text : null, _relationList, (val) {
+                          setState(() {
+                            _eContactRelationController.text = val ?? '';
+                          });
+                        }),
 
                         _buildSectionHeader('Permanent Address'),
                         _buildTextField('Address', _addressController, required: true),
@@ -544,25 +598,90 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
                         _buildSectionHeader('Documents & ID Proofs'),
                         
-                        _buildUploadField('Profile Photo', null, 'Photo'),
+                        // Profile Avatar Layout
+                        _buildAvatarSection(),
+                        
                         _buildUploadField('PAN Number', _panNoController, 'Pan'),
                         _buildUploadField('Aadhaar Number', _adharNoController, 'Adhar'),
-                        _buildUploadField('Passport Number', _passportNoController, 'Passport'),
-                        _buildDateField('Passport Expiry Date', _passportExpDateController),
-                        _buildUploadField('Driving License', _dlNoController, 'DL'),
-                        _buildDateField('DL Expiry Date', _dlExpDateController),
+                        
+                        Row(
+                          children: [
+                            Expanded(child: _buildUploadField('Passport Number', _passportNoController, 'Passport')),
+                            const SizedBox(width: 10),
+                            SizedBox(width: 120, child: _buildDateField('Expiry Date', _passportExpDateController)),
+                          ],
+                        ),
+                        
+                        Row(
+                          children: [
+                            Expanded(child: _buildUploadField('Driving License', _dlNoController, 'DL')),
+                            const SizedBox(width: 10),
+                            SizedBox(width: 120, child: _buildDateField('Expiry Date', _dlExpDateController)),
+                          ],
+                        ),
+                        
                         _buildUploadField('Insurance Number', _insuranceNoController, 'Card'),
                         
-                        _buildSectionHeader('Bank Details'),
-                        _buildTextField('Bank Name', _bankNameController),
-                        _buildTextField('Account No', _accountNoController),
-                        _buildTextField('IFSC Code', _ifsCodeController),
+                        // Renamed Bank Details -> Official Info
+                        _buildSectionHeader('Official Info'),
+                        
+                        _buildTextField('Location', _locationController, readOnly: true, fillColor: Colors.grey[200]),
+                        // Religion is editable, from dropdown
+                        _buildDropdown('Religion', _selectedReligion, religionList, (val) => setState(() => _selectedReligion = val)),
+                        _buildTextField('Employment Type', _empTypeController, readOnly: true, fillColor: Colors.grey[200]),
+                        _buildTextField('Pay Group', _payGroupController, readOnly: true, fillColor: Colors.grey[200]),
+                        _buildTextField('Department', _departmentController, readOnly: true, fillColor: Colors.grey[200]),
+                        _buildTextField('Designation', _designationController, readOnly: true, fillColor: Colors.grey[200]),
+                        
+                        // Cadre - Editable Dropdown
+                        _buildDropdown('Cadre', _selectedCadre, _cadreList, (val) => setState(() => _selectedCadre = val)),
+                        
+                        // Level - Editable Dropdown
+                        _buildDropdown('Level', _selectedLevel, _levelList, (val) => setState(() => _selectedLevel = val)),
+                        
+                        _buildTextField('Weekly Off 1', _weeklyOff1Controller, readOnly: true, fillColor: Colors.grey[200]),
+                        _buildTextField('Weekly Off 2', _weeklyOff2Controller, readOnly: true, fillColor: Colors.grey[200]),
+                        _buildTextField('Reporting Person', _reportingPersonController, readOnly: true, fillColor: Colors.grey[200]),
+                        _buildTextField('Shift Group', _shiftGroupController, readOnly: true, fillColor: Colors.grey[200]),
+                        
+                        _buildTextField('Bank Name', _bankNameController, readOnly: true, fillColor: Colors.grey[200]),
+                        _buildTextField('Account No', _accountNoController, readOnly: true, fillColor: Colors.grey[200]),
+                        
+                        // IFSC - Editable
+                        _buildTextField('IFSC Code', _ifsCodeController), 
+                        
+                        _buildTextField('Income Tax Slab', _itSlabController, readOnly: true, fillColor: Colors.grey[200]),
+                        _buildTextField('Official Email', _officeEmailController, readOnly: true, fillColor: Colors.grey[200]),
+                        
+                        // CUG - Editable (based on "except ... cug no ... set read only not editable" - wait, exception implies editable??)
+                        // "except religion,cadre,level,ifsc o,cug no, date og join, bonus allowed set read only not editable."
+                        // -> These are EXCEPTIONS to the "set read only" rule. So they ARE EDITABLE.
+                        _buildTextField('CUG No', _cugNoController),
+                        
+                        _buildTextField('Company Policy', _policyNameController, readOnly: true, fillColor: Colors.grey[200]),
+                        
+                        // Date of Join - Editable
+                        _buildDateField('Date of Join', _dojController),
+                        
+                        SwitchListTile(
+                          title: const Text('Bonus Allowed'),
+                          value: _isBonus,
+                          onChanged: (val) => setState(() => _isBonus = val),
+                          activeThumbColor: AppColors.primary,
+                        ),
 
                         _buildSectionHeader('Statutory Details'),
-                        _buildTextField('PF No', _pfNoController),
-                        _buildTextField('UAN No', _uanNoController),
-                        _buildTextField('ESI No', _esiNoController),
-
+                         // Hidden fields but maybe show as read only or hidden? "add missing fields... pf no...". I'll show them.
+                        _buildTextField('PF No', _pfNoController, readOnly: true, fillColor: Colors.grey[200]),
+                        _buildTextField('PF Date', _pfDateController, readOnly: true, fillColor: Colors.grey[200]),
+                        _buildTextField('UAN No', _uanNoController, readOnly: true, fillColor: Colors.grey[200]),
+                        _buildTextField('ESI No', _esiNoController, readOnly: true, fillColor: Colors.grey[200]),
+                        _buildTextField('ESI Date', _esiDateController, readOnly: true, fillColor: Colors.grey[200]),
+                        
+                        const SizedBox(height: 10),
+                        const Text('PF Share', style: TextStyle(fontWeight: FontWeight.bold)),
+                        _buildPFShareTable(), // New table
+                        
                         _buildSectionHeader('Other Information'),
                         _buildTextField('Medical Issues', _medicalIssuesController),
                         _buildDateField('Increment Date', _incDateController),
@@ -576,8 +695,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                         ),
                         if (_isResign) ...[
                           _buildDateField('Resignation Date', _resignDateController),
-                          _buildTextField('Resignation Reason Head', _resignReasonHeadController),
-                          _buildTextField('Resignation Reason', _resignReasonController, maxLines: 3),
+                          _buildTextField('Resignation Reason', _resignReasonHeadController), // Used Head as Reason per logic
+                          _buildTextField('Resignation Remarks', _resignReasonController, maxLines: 3),
                         ],
 
                         _buildSectionHeader('ESS Login'),
@@ -588,7 +707,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           activeThumbColor: AppColors.primary,
                         ),
                         if (_empPortal) ...[
-                          _buildTextField('User Name', _userNameController),
+                          _buildTextField('User Name', _userNameController, readOnly: true, fillColor: Colors.grey[200]), // Usually login not editable here? keeping as is or readonly? User said "dont change anything in ESS Login". Okay, I will keep as is.
                           _buildTextField('Password', _passwordController, obscureText: true),
                         ],
 
@@ -608,9 +727,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                         ..._buildInsList(),
                         _buildAddButton('Add Insurance', _addInsurance),
 
-                        _buildSectionHeader('PF Nominee Details'),
-                        ..._buildPFNomineeList(),
-                        _buildAddButton('Add PF Nominee', _addPFNominee),
+                        // _buildSectionHeader('PF Nominee Details'), // Commented out
+                        // ..._buildPFNomineeList(),
+                        // _buildAddButton('Add PF Nominee', _addPFNominee),
 
                         _buildSectionHeader('Language Skills'),
                         ..._buildLangList(),
@@ -681,14 +800,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   void _showEduDialog({int? index}) {
     final edu = index != null ? _eduDetails[index] : null;
-    final degreeTypeList = _getLookupList('dtDegreeType', 'DegreeType');
+    final degreeTypeList = _degreeTypeList; // From static list
     
     String? selectedType = edu?.degreeType;
     final degreeController = TextEditingController(text: edu?.degree);
     final instController = TextEditingController(text: edu?.institution);
-    final subjectController = TextEditingController(text: edu?.subject);
-    final passYearController = TextEditingController(text: edu?.passYear);
-    final dateController = TextEditingController(text: edu?.passDate);
+    final subjectController = TextEditingController(text: edu?.subject); // Field of Study
+    final passDateController = TextEditingController(text: edu?.passDate); // Month and Year Passed
 
     showDialog(
       context: context,
@@ -700,11 +818,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildDropdown('Degree Type', selectedType, degreeTypeList, (val) => setDialogState(() => selectedType = val)),
-                _buildTextField('Degree', degreeController),
+                // Field of Study
+                _buildTextField('Field of Study', subjectController), 
                 _buildTextField('Institution', instController),
-                _buildTextField('Subject', subjectController),
-                _buildTextField('Passing Year', passYearController),
-                _buildDateField('Passing Date', dateController, setState: setDialogState),
+                
+                // Month and Year Passed
+                 _buildTextField('Month & Year Passed', passDateController, keyboardType: TextInputType.datetime),
+                
+                 // Certificate Upload
+                 OutlinedButton(onPressed: () {}, child: const Text('Upload Certificate')), // Placeholder logic as upload immediately or on save? Keeping simple. User said "certificate upload option".
               ],
             ),
           ),
@@ -718,8 +840,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   degree: degreeController.text,
                   institution: instController.text,
                   subject: subjectController.text,
-                  passYear: passYearController.text,
-                  passDate: dateController.text,
+                  passYear: '', // Removed from UI
+                  passDate: passDateController.text,
                   filePath: edu?.filePath,
                 );
                 setState(() {
@@ -784,9 +906,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               children: [
                 _buildTextField('Company Name', companyController),
                 _buildTextField('Role', roleController),
-                _buildTextField('Duration', durationController),
-                _buildDateField('From Date', fromController, setState: setDialogState),
-                _buildDateField('To Date', toController, setState: setDialogState),
+                // Removed Duration
+                _buildDateField('From', fromController, setState: setDialogState),
+                _buildDateField('To', toController, setState: setDialogState),
+                
+                // Upload Options
+                OutlinedButton(onPressed: () {}, child: const Text('Upload Experience Certificate')),
+                const SizedBox(height: 8),
+                OutlinedButton(onPressed: () {}, child: const Text('Upload Relieving Letter')),
               ],
             ),
           ),
@@ -878,6 +1005,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 _buildTextField('Aadhaar No', adharController),
                 _buildTextField('Education', eduController),
                 _buildTextField('Occupation', occController),
+                // New additions
+                OutlinedButton(onPressed: () {}, child: const Text('Upload Aadhaar')),
+                const SizedBox(height: 8),
+                OutlinedButton(onPressed: () {}, child: const Text('Upload Profile Image')),
               ],
             ),
           ),
@@ -964,13 +1095,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildDropdown('Insurance Type', selectedType, insTypeList, (val) => setDialogState(() => selectedType = val)),
-                _buildTextField('Policy Name', nameController),
+                _buildTextField('Insurance Name', nameController), // Renamed from Policy Name
                 _buildTextField('Company Name', companyController),
-                _buildTextField('Policy No', noController),
+                _buildTextField('Insurance No', noController), // Renamed from Policy No
                 _buildTextField('Insurance For', forController),
                 _buildTextField('Sum Assured', amountController),
                 _buildDateField('Start Date', startController, setState: setDialogState),
                 _buildDateField('End Date', endController, setState: setDialogState),
+                OutlinedButton(onPressed: () {}, child: const Text('Upload Insurance Copy')),
               ],
             ),
           ),
@@ -1226,7 +1358,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {bool required = false, TextInputType keyboardType = TextInputType.text, int maxLines = 1, bool obscureText = false}) {
+  Widget _buildTextField(String label, TextEditingController controller, {bool required = false, TextInputType keyboardType = TextInputType.text, int maxLines = 1, bool obscureText = false, bool readOnly = false, Color? fillColor}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
@@ -1234,10 +1366,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         keyboardType: keyboardType,
         maxLines: obscureText ? 1 : maxLines,
         obscureText: obscureText,
+        readOnly: readOnly,
         decoration: InputDecoration(
           labelText: label,
           filled: true,
-          fillColor: Colors.white,
+          fillColor: fillColor ?? Colors.white,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         ),
         validator: (value) {
@@ -1246,6 +1379,101 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           }
           return null;
         },
+      ),
+    );
+  }
+
+  Widget _buildAvatarSection() {
+    return Center(
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 50,
+            backgroundImage: _avatarFile != null 
+              ? FileImage(_avatarFile!) 
+              : (_profileData?.photoBase64 != null 
+                  ? MemoryImage(base64Decode(_getCleanBase64(_profileData!.photoBase64!))) 
+                  : null) as ImageProvider?,
+            child: (_avatarFile == null && _profileData?.photoBase64 == null) 
+              ? const Icon(Icons.person, size: 50) 
+              : null,
+          ),
+          const SizedBox(height: 10),
+          if (!_isEditingAvatar)
+            OutlinedButton.icon(
+              onPressed: () => setState(() => _isEditingAvatar = true),
+              icon: const Icon(Icons.edit),
+              label: const Text('Edit Avatar'),
+            ),
+          if (_isEditingAvatar) ...[
+            OutlinedButton.icon(
+              onPressed: () async {
+                FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.image);
+                if (result != null && result.files.single.path != null) {
+                  setState(() => _avatarFile = File(result.files.single.path!));
+                }
+              },
+              icon: const Icon(Icons.upload),
+              label: const Text('Upload Image'),
+            ),
+            if (_avatarFile != null)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                       setState(() {
+                         _isEditingAvatar = false;
+                         _avatarFile = null;
+                       });
+                    }, 
+                    child: const Text('Cancel')
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      if (_avatarFile != null) {
+                        await _profileService.uploadProfileDocument(
+                          type: 'Photo',
+                          file: _avatarFile!,
+                          idNumber: _profileData?.empCode,
+                        );
+                        // Reload profile to show new image
+                        await _loadInitialData();
+                      }
+                      setState(() {
+                        _isEditingAvatar = false;
+                        _avatarFile = null; // Clear picked file after save
+                      });
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+          ],
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPFShareTable() {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: DataTable(
+        columns: const [
+          DataColumn(label: Text('Member')),
+          DataColumn(label: Text('Share %')),
+          DataColumn(label: Text('Actions')),
+        ],
+        rows: _pfNominees.asMap().entries.map((entry) {
+            int index = entry.key;
+            var n = entry.value;
+            return DataRow(cells: [
+              DataCell(Text(n.memberName ?? '')),
+              DataCell(Text(n.shareP ?? '')),
+              DataCell(IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => setState(() => _pfNominees.removeAt(index)))),
+            ]);
+        }).toList(),
       ),
     );
   }
@@ -1310,5 +1538,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         },
       ),
     );
+  }
+
+  String _getCleanBase64(String base64String) {
+    if (base64String.contains(',')) {
+      return base64String.split(',').last.trim();
+    }
+    return base64String.trim();
   }
 }
