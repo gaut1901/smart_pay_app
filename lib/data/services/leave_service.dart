@@ -259,13 +259,42 @@ class LeaveService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // The response field is a string containing JSON
         final responseData = jsonDecode(data['response']);
-        // Check for dtSalaryName which contains the leave heads
         final List<dynamic> heads = responseData['dtSalaryName'] ?? [];
         return heads.map((e) => e['LeaveHead'].toString()).toList();
       } else {
         throw Exception('Failed to load leave headers: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, List<dynamic>>> getLeaveBalanceDetails({
+    required String fDate,
+    required String tDate,
+    required String salaryName,
+  }) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}api/empleavebalance/view/?fdate=$fDate&tdate=$tDate&salaryname=$salaryName');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: user.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final responseData = jsonDecode(data['response']);
+        return {
+          'dt': List<dynamic>.from(responseData['dt'] ?? []),
+          'dt1': List<dynamic>.from(responseData['dt1'] ?? []),
+        };
+      } else {
+        throw Exception('Failed to load leave balance details: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
