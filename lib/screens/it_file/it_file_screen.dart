@@ -331,12 +331,38 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   }
   
   void _onView(ITFileRequest item) {
-      setState(() {
-          _action = 'View';
-          _editId = item.id;
-      });
-      _tabController.animateTo(0);
-      _fetchLookups();
+    UIConstants.showViewModal(
+      context: context,
+      title: 'IT File Details',
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _itFileService.getITFileDetails(id: item.id, action: 'View'),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()));
+          }
+          if (snapshot.hasError) {
+            return Center(child: Padding(padding: EdgeInsets.all(20), child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red))));
+          }
+          
+          final d = snapshot.data!;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
+              children: [
+                UIConstants.buildDetailItem('Ticket No', d['TicketNo'] ?? ''),
+                UIConstants.buildDetailItem('Employee', d['EmpName'] ?? ''),
+                UIConstants.buildDetailItem('Fin Year', d['FinYear'] ?? ''),
+                UIConstants.buildDetailItem('IT Head', d['ITHead'] ?? ''),
+                UIConstants.buildDetailItem('Amount', (d['AAmount'] ?? 0).toString()),
+                UIConstants.buildDetailItem('Status', d['App'] ?? ''),
+                UIConstants.buildDetailItem('Approved By', d['AppBy'] ?? ''),
+                UIConstants.buildDetailItem('Approved On', _formatDate(d['AppOn']?.toString())),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _onDelete(ITFileRequest item) async {
@@ -596,88 +622,186 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           children: [
-             const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text('Income Tax History', 
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-              ),
-            ),
-            Container(
+             const SizedBox(height: 16),
+             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white, 
-                borderRadius: BorderRadius.circular(8), 
+                borderRadius: BorderRadius.circular(12), 
                 border: Border.all(color: Colors.grey.shade200),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  UIConstants.buildTableActionsRow(
-                      searchController: _searchController,
-                      rowsPerPage: _rowsPerPage,
-                      searchHint: 'Search by Ticket No, Name or IT Head',
-                  ),
-                  const SizedBox(height: 12),
+                  const Text('Income Tax History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  _buildTableActionsRow(),
+                  const SizedBox(height: 16),
                   if (_filteredHistory.isEmpty)
-                     const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No history found')))
+                     const Center(child: Padding(padding: EdgeInsets.all(40), child: Text('No history found')))
                   else
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        headingRowColor: MaterialStateProperty.all(UIConstants.tableHeaderBg),
-                        columns: [
-                            DataColumn(label: Text('TICKET NO', style: UIConstants.tableHeaderStyle)),
-                            DataColumn(label: Text('EMP NAME', style: UIConstants.tableHeaderStyle)),
-                            DataColumn(label: Text('FIN YEAR', style: UIConstants.tableHeaderStyle)),
-                            DataColumn(label: Text('DATE', style: UIConstants.tableHeaderStyle)),
-                            DataColumn(label: Text('IT HEAD', style: UIConstants.tableHeaderStyle)),
-                            DataColumn(label: Text('AMOUNT', style: UIConstants.tableHeaderStyle)),
-                            DataColumn(label: Text('STATUS', style: UIConstants.tableHeaderStyle)),
-                            DataColumn(label: Text('APP.BY', style: UIConstants.tableHeaderStyle)),
-                            DataColumn(label: Text('APP.ON', style: UIConstants.tableHeaderStyle)),
-                            DataColumn(label: Text('ACTIONS', style: UIConstants.tableHeaderStyle)),
-                        ],
-                        rows: _filteredHistory.take(_rowsPerPage).map((item) {
-                          return DataRow(cells: [
-                            DataCell(Text(item.ticketNo)),
-                            DataCell(Text(item.empName)),
-                            DataCell(Text(item.finYear)),
-                            DataCell(Text(item.sDate)),
-                            DataCell(Text(item.itHead)),
-                            DataCell(Text(item.amount.toString())),
-                            DataCell(Text(item.app)),
-                            DataCell(Text(item.appBy)),
-                            DataCell(Text(item.appOn)),
-                            DataCell(UIConstants.buildActionButtons(
-                                onView: () => _onView(item),
-                                onEdit: () => _onEdit(item),
-                                onDelete: () => _onDelete(item),
-                            )),
-                          ]);
-                        }).toList(),
-                      ),
-                    ),
+                    _buildHistoryCards(),
                   const Divider(),
-                  UIConstants.buildPaginationFooter(
-                      totalCount: _filteredHistory.length,
-                      rowsPerPage: _rowsPerPage,
-                      currentPage: 1, // Simple pagination for now
-                  ),
+                  _buildPaginationFooter(_filteredHistory.length),
                 ],
               ),
             ),
             const SizedBox(height: 40),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryCards() {
+    int displayCount = _filteredHistory.length > _rowsPerPage ? _rowsPerPage : _filteredHistory.length;
+    List<ITFileRequest> displayedItems = _filteredHistory.take(displayCount).toList();
+
+    return Column(
+      children: displayedItems.map((item) => _buildHistoryCard(item)).toList(),
+    );
+  }
+
+  Widget _buildHistoryCard(ITFileRequest item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildCardItem('TKT.NO', item.ticketNo, flex: 1),
+              _buildCardItem('EMP NAME', item.empName, flex: 2),
+              _buildActions(item),
+            ],
+          ),
+          const Divider(height: 16),
+          Row(
+            children: [
+              _buildCardItem('FIN YEAR', item.finYear, flex: 1),
+              _buildCardItem('IT HEAD', item.itHead, flex: 2),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _buildCardItem('AMOUNT', item.amount.toString(), flex: 1),
+              _buildCardItem('STATUS', item.app, flex: 1, isHighlight: true),
+              _buildCardItem('APP. ON', _formatDate(item.appOn), flex: 1),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardItem(String label, String value, {int flex = 1, bool isHighlight = false}) {
+    return Expanded(
+      flex: flex,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(
+            fontSize: 13, 
+            fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+            color: isHighlight ? AppColors.primary : const Color(0xFF1E1E1E),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActions(ITFileRequest item) {
+    bool canEdit = (item.app == "-" || item.app == "Pending");
+    return UIConstants.buildActionButtons(
+        onView: () => _onView(item),
+        onEdit: () => _onEdit(item),
+        onDelete: () => _onDelete(item),
+        editTooltip: canEdit ? 'Modify' : 'Revise',
+    );
+  }
+
+  Widget _buildTableActionsRow() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('Row Per Page', style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _rowsPerPage,
+                  isDense: true,
+                  icon: const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.blue),
+                  items: [10, 25, 50, 100].map((int val) {
+                    return DropdownMenuItem<int>(
+                      value: val,
+                      child: Text('$val', style: const TextStyle(fontSize: 12)),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _rowsPerPage = val);
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          height: 40,
+          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
+          child: TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              hintText: 'Search by Ticket No, Name or IT Head',
+              hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              border: InputBorder.none,
+              suffixIcon: Icon(Icons.search, size: 20, color: Colors.grey),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaginationFooter(int count) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Showing 1 to $count of $count entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          const Row(
+            children: [
+              Icon(Icons.chevron_left, color: Colors.grey),
+              SizedBox(width: 16),
+              Icon(Icons.chevron_right, color: Colors.grey),
+            ],
+          )
+        ],
       ),
     );
   }
@@ -814,5 +938,15 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
         ),
       ],
     );
+  }
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return '-';
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateFormat('dd-MM-yyyy').format(date);
+    } catch (e) {
+      return dateStr;
+    }
   }
 }

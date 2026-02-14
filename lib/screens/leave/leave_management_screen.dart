@@ -1448,7 +1448,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
                 const Text('Rows Per Page', style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.bold)),
                 const SizedBox(width: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  padding: EdgeInsets.zero, // Removed padding
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300), 
                     borderRadius: BorderRadius.circular(8),

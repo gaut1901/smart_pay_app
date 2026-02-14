@@ -484,64 +484,33 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           children: [
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text('Advance Adjustment History', 
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-              ),
-            ),
+            const SizedBox(height: 16),
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white, 
-                borderRadius: BorderRadius.circular(8), 
+                borderRadius: BorderRadius.circular(12), 
                 border: Border.all(color: Colors.grey.shade200),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text('Advance Adjustment History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
                   _buildTableActionsRow(),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   if (_filteredHistory.isEmpty)
-                    const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No history found')))
+                    const Center(child: Padding(padding: EdgeInsets.all(40), child: Text('No history found')))
                   else
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        headingRowColor: MaterialStateProperty.all(UIConstants.tableHeaderBg),
-                        columns: [
-                          DataColumn(label: Text('TICKET NO', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('EMP NAME', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('REQ DATE', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('SALARY MONTH', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('AMOUNT', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('STATUS', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('APP.BY', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('ACTIONS', style: UIConstants.tableHeaderStyle)),
-                        ],
-                        rows: _filteredHistory.map((item) {
-                          return DataRow(cells: [
-                            DataCell(Text(item.ticketNo)),
-                            DataCell(Text(item.empName)),
-                            DataCell(Text(item.reqDate)),
-                            DataCell(Text(item.salaryName)),
-                            DataCell(Text(item.adjAmount.toStringAsFixed(2))),
-                            DataCell(Text(item.app)),
-                            DataCell(Text(item.appBy)),
-                            DataCell(_buildActions(item)),
-                          ]);
-                        }).toList(),
-                      ),
-                    ),
+                    _buildHistoryCards(),
                   const Divider(),
                   _buildPaginationFooter(_filteredHistory.length),
                 ],
@@ -550,6 +519,73 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
             const SizedBox(height: 40),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryCards() {
+    int displayCount = _filteredHistory.length > _rowsPerPage ? _rowsPerPage : _filteredHistory.length;
+    List<AdvanceAdjustmentRequest> displayedItems = _filteredHistory.take(displayCount).toList();
+
+    return Column(
+      children: displayedItems.map((item) => _buildHistoryCard(item)).toList(),
+    );
+  }
+
+  Widget _buildHistoryCard(AdvanceAdjustmentRequest item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildCardItem('TKT.NO', item.ticketNo, flex: 1),
+              _buildCardItem('EMP NAME', item.empName, flex: 2),
+              _buildActions(item),
+            ],
+          ),
+          const Divider(height: 16),
+          Row(
+            children: [
+              _buildCardItem('REQ. DATE', item.reqDate, flex: 1),
+              _buildCardItem('SALARY MONTH', item.salaryName, flex: 2),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _buildCardItem('AMOUNT', item.adjAmount.toStringAsFixed(2), flex: 1, isHighlight: true),
+              _buildCardItem('STATUS', item.app, flex: 1, isHighlight: true),
+              _buildCardItem('APP. BY', item.appBy, flex: 1),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardItem(String label, String value, {int flex = 1, bool isHighlight = false}) {
+    return Expanded(
+      flex: flex,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(
+            fontSize: 13, 
+            fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+            color: isHighlight ? AppColors.primary : const Color(0xFF1E1E1E),
+          )),
+        ],
       ),
     );
   }
@@ -575,13 +611,23 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
             const Text('Row Per Page', style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.bold)),
             const SizedBox(width: 10),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
-              child: Row(
-                children: [
-                  Text('$_rowsPerPage', style: const TextStyle(fontSize: 12)),
-                  const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.blue),
-                ],
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _rowsPerPage,
+                  isDense: true,
+                  icon: const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.blue),
+                  items: [10, 25, 50, 100].map((int val) {
+                    return DropdownMenuItem<int>(
+                      value: val,
+                      child: Text('$val', style: const TextStyle(fontSize: 12)),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _rowsPerPage = val);
+                  },
+                ),
               ),
             ),
           ],

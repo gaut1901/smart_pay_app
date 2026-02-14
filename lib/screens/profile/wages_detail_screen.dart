@@ -95,10 +95,12 @@ class _WagesDetailScreenState extends State<WagesDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FB), // AppColors.background
       appBar: AppBar(
-        title: const Text('Wages Detail'),
+        title: const Text('Wages Details', style: TextStyle(color: Colors.white, fontSize: 18)),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -115,28 +117,28 @@ class _WagesDetailScreenState extends State<WagesDetailScreen> {
                         _buildCTCCard(),
                         const SizedBox(height: 16),
                       ],
-                      _buildComponentsTable('Salary Components', 'E'),
+                      _buildComponentsList('Salary Components', 'E'),
                       const SizedBox(height: 16),
                       if (_wagesData?.salaryType == 'CTC') ...[
-                        _buildComponentsTable('Statutory Benefits', 'CTC'),
+                        _buildComponentsList('Statutory Benefits', 'CTC'),
                         const SizedBox(height: 16),
-                        _buildComponentsTable('Salary Deductions', 'CD'),
+                        _buildComponentsList('Salary Deductions', 'CD'),
                         const SizedBox(height: 16),
                         _buildTakeHomeSection(),
                         const SizedBox(height: 16),
                       ],
-                      _buildReimbursementTable(),
+                      _buildReimbursementList(),
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
+                        height: 50,
                         child: ElevatedButton(
                           onPressed: _submitWages,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFE53935),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            backgroundColor: const Color(0xFFDE3C4B),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          child: const Text('Update Wages', style: TextStyle(color: Colors.white, fontSize: 16)),
+                          child: const Text('Update Wages', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
                         ),
                       ),
                     ],
@@ -146,129 +148,155 @@ class _WagesDetailScreenState extends State<WagesDetailScreen> {
   }
 
   Widget _buildHeaderCard() {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _otWageController,
-              decoration: const InputDecoration(
-                labelText: 'OT Wages / Hour',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          TextField(
+            controller: _otWageController,
+            decoration: InputDecoration(
+              labelText: 'OT Wages / Hour',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding: const EdgeInsets.all(12),
             ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _selectedIncDate,
-              decoration: const InputDecoration(
-                labelText: 'Increment On',
-                border: OutlineInputBorder(),
-              ),
-              items: _wagesData?.dtIncDate.map((item) {
-                return DropdownMenuItem<String>(
-                  value: item.incdate1,
-                  child: Text(item.incdate ?? ''),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedIncDate = value;
-                });
-              },
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _selectedIncDate,
+            decoration: InputDecoration(
+              labelText: 'Increment On',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             ),
-          ],
-        ),
+            items: _wagesData?.dtIncDate.map((item) {
+              return DropdownMenuItem<String>(
+                value: item.incdate1,
+                child: Text(item.incdate ?? ''),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedIncDate = value;
+              });
+            },
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildCTCCard() {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: TextField(
-          controller: _ctcController,
-          decoration: const InputDecoration(
-            labelText: 'CTC',
-            border: OutlineInputBorder(),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          keyboardType: TextInputType.number,
-          onChanged: (value) {
-            // In a real app, you'd trigger calculation here
-          },
+        ],
+      ),
+      child: TextField(
+        controller: _ctcController,
+        decoration: InputDecoration(
+          labelText: 'CTC',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          contentPadding: const EdgeInsets.all(12),
         ),
+        keyboardType: TextInputType.number,
+        onChanged: (value) {
+          // In a real app, you'd trigger calculation here
+        },
       ),
     );
   }
 
-  Widget _buildComponentsTable(String title, String edType) {
+  Widget _buildComponentsList(String title, String edType) {
     final components = _wagesData?.dtEarn.where((e) => e.edtype == edType).toList() ?? [];
     if (components.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Table(
-          border: TableBorder.all(color: Colors.grey.shade300),
-          columnWidths: const {
-            0: FlexColumnWidth(3),
-            1: FlexColumnWidth(1),
-            2: FlexColumnWidth(2),
-            3: FlexColumnWidth(2),
-          },
-          children: [
-            TableRow(
-              children: [
-                Container(
-                  color: Colors.grey.shade100,
-                  padding: const EdgeInsets.all(8.0),
-                  child: const Text('Component', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                Container(
-                  color: Colors.grey.shade100,
-                  padding: const EdgeInsets.all(8.0),
-                  child: const Text('%', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                Container(
-                  color: Colors.grey.shade100,
-                  padding: const EdgeInsets.all(8.0),
-                  child: const Text('Monthly', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.right),
-                ),
-                Container(
-                  color: Colors.grey.shade100,
-                  padding: const EdgeInsets.all(8.0),
-                  child: const Text('Yearly', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.right),
-                ),
-              ],
-            ),
-            ...components.map((c) => TableRow(
-              children: [
-                Padding(padding: const EdgeInsets.all(8.0), child: Text(c.edname ?? '')),
-                Padding(padding: const EdgeInsets.all(8.0), child: Text(c.p?.toString() ?? '')),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(c.camount?.toStringAsFixed(2) ?? '0.00', textAlign: TextAlign.right),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(c.yamount?.toStringAsFixed(2) ?? '0.00', textAlign: TextAlign.right),
-                ),
-              ],
-            )),
-          ],
-        ),
+        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        ...components.map((c) => Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(c.edname ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text('${c.p?.toString() ?? 0}%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Monthly', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        const SizedBox(height: 4),
+                        Text(c.camount?.toStringAsFixed(2) ?? '0.00', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text('Yearly', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        const SizedBox(height: 4),
+                        Text(c.yamount?.toStringAsFixed(2) ?? '0.00', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        )).toList(),
       ],
     );
   }
 
   Widget _buildTakeHomeSection() {
-    // Basic calculation for display
     double monthlyGross = 0;
     double yearlyGross = 0;
     double monthlyDed = 0;
@@ -284,89 +312,129 @@ class _WagesDetailScreenState extends State<WagesDetailScreen> {
       }
     }
 
-    return Column(
-      children: [
-        _buildSummaryRow('Gross Salary', monthlyGross, yearlyGross, Colors.grey.shade200),
-        _buildSummaryRow('Total Deduction', monthlyDed, yearlyDed, Colors.grey.shade200),
-        _buildSummaryRow('Take Home Salary', monthlyGross - monthlyDed, yearlyGross - yearlyDed, Colors.blue.shade50),
-      ],
-    );
-  }
-
-  Widget _buildSummaryRow(String label, double monthly, double yearly, Color bgColor) {
     return Container(
-      color: bgColor,
-      padding: const EdgeInsets.all(8.0),
-      child: Row(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(flex: 4, child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold))),
-          Expanded(flex: 2, child: Text(monthly.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.bold))),
-          Expanded(flex: 2, child: Text(yearly.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.bold))),
+          const Text('Salary Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          _buildSummaryItem('Gross Salary', monthlyGross, yearlyGross),
+          const Divider(height: 24),
+          _buildSummaryItem('Total Deduction', monthlyDed, yearlyDed),
+          const Divider(height: 24),
+          _buildSummaryItem('Take Home Salary', monthlyGross - monthlyDed, yearlyGross - yearlyDed, isHighlight: true),
         ],
       ),
     );
   }
 
-  Widget _buildReimbursementTable() {
+  Widget _buildSummaryItem(String label, double monthly, double yearly, {bool isHighlight = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(child: Text(label, style: TextStyle(
+          fontSize: 14, 
+          fontWeight: isHighlight ? FontWeight.bold : FontWeight.w500,
+          color: isHighlight ? Colors.blue : Colors.black87
+        ))),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(monthly.toStringAsFixed(2), style: TextStyle(
+              fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+              fontSize: 14
+            )),
+            Text('Monthly', style: TextStyle(fontSize: 10, color: Colors.grey)),
+          ],
+        ),
+        const SizedBox(width: 16),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(yearly.toStringAsFixed(2), style: TextStyle(
+              fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+              fontSize: 14
+            )),
+            Text('Yearly', style: TextStyle(fontSize: 10, color: Colors.grey)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReimbursementList() {
     final reimbursements = _wagesData?.dtDed ?? [];
     if (reimbursements.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Reimbursement', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Table(
-          border: TableBorder.all(color: Colors.grey.shade300),
-          columnWidths: const {
-            0: FlexColumnWidth(3),
-            1: FlexColumnWidth(1),
-            2: FlexColumnWidth(2),
-            3: FlexColumnWidth(1),
-          },
-          children: [
-            TableRow(
-              children: [
-                Container(
-                  color: Colors.grey.shade100,
-                  padding: const EdgeInsets.all(8.0),
-                  child: const Text('Name', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                Container(
-                  color: Colors.grey.shade100,
-                  padding: const EdgeInsets.all(8.0),
-                  child: const Text('Unlim.', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                Container(
-                  color: Colors.grey.shade100,
-                  padding: const EdgeInsets.all(8.0),
-                  child: const Text('Max Limit', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.right),
-                ),
-                Container(
-                  color: Colors.grey.shade100,
-                  padding: const EdgeInsets.all(8.0),
-                  child: const Text('Sal.', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-            ...reimbursements.map((r) => TableRow(
-              children: [
-                Padding(padding: const EdgeInsets.all(8.0), child: Text(r.edname ?? '')),
-                Checkbox(value: r.unlimited, onChanged: (val) => setState(() => r.unlimited = val ?? false)),
-                Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: TextField(
-                    decoration: const InputDecoration(isDense: true),
-                    keyboardType: TextInputType.number,
-                    onChanged: (val) => r.maxAllowed = double.tryParse(val) ?? 0,
-                    controller: TextEditingController(text: r.maxAllowed?.toString() ?? '0'),
+        const Text('Reimbursement', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        ...reimbursements.map((r) => Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(r.edname ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Unlimited', style: TextStyle(fontSize: 13)),
+                      value: r.unlimited, 
+                      onChanged: (val) => setState(() => r.unlimited = val ?? false),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      dense: true,
+                    ),
                   ),
+                  Expanded(
+                    child: CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Salary', style: TextStyle(fontSize: 13)),
+                      value: r.salaryPay, 
+                      onChanged: (val) => setState(() => r.salaryPay = val ?? false),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      dense: true,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: TextEditingController(text: r.maxAllowed?.toString() ?? '0'),
+                onChanged: (val) => r.maxAllowed = double.tryParse(val) ?? 0,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Max Limit',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
-                Checkbox(value: r.salaryPay, onChanged: (val) => setState(() => r.salaryPay = val ?? false)),
-              ],
-            )),
-          ],
-        ),
+              ),
+            ],
+          ),
+        )).toList(),
       ],
     );
   }
