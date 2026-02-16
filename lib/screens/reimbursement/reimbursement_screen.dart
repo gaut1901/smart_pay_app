@@ -710,11 +710,16 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
         children: [
           Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
           const SizedBox(height: 4),
-          Text(value, style: TextStyle(
-            fontSize: 13, 
-            fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
-            color: isHighlight ? AppColors.primary : const Color(0xFF1E1E1E),
-          )),
+          Text(
+            value, 
+            style: TextStyle(
+              fontSize: 12, 
+              fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+              color: isHighlight ? AppColors.primary : const Color(0xFF1E1E1E),
+            ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
         ],
       ),
     );
