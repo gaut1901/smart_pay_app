@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:smartpay_flutter/core/constants.dart';
 import 'package:smartpay_flutter/core/ui_constants.dart';
 import 'package:smartpay_flutter/data/services/it_file_service.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 class ITFileScreen extends StatefulWidget {
   const ITFileScreen({super.key});
@@ -433,7 +435,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                     return ListTile(
                       leading: const Icon(Icons.attachment, size: 20),
                       title: Text(fileName, style: const TextStyle(fontSize: 13, decoration: TextDecoration.underline, color: Colors.blue)),
-                      onTap: () => _downloadFile(file['FilePath']),
+                      onTap: () => _viewFile(file['FilePath']),
                       dense: true,
                     );
                   }).toList(),
@@ -446,28 +448,102 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
     );
   }
 
-  Future<void> _downloadFile(String? filePath) async {
-    if (filePath == null || filePath.isEmpty) return;
+  Future<Map<String, dynamic>> _downloadFile(String? filePath) async {
+    if (filePath == null || filePath.isEmpty) return {};
     
     try {
-      UIConstants.showSuccessSnackBar(context, 'Downloading file...');
+      // UIConstants.showSuccessSnackBar(context, 'Fetching file...');
       final result = await _itFileService.getDownloadFile(filePath);
       
       if (result['msg'] != null && result['msg'].toString().trim().isNotEmpty) {
           throw Exception(result['msg']);
       }
       
-      // Since we don't have file saving libraries, we just notify the user it's ready
-      // In a real scenario, we'd use path_provider and open_file_plus
-      UIConstants.showSuccessSnackBar(context, 'File fetched successfully. (Base64 data received)');
-      
-      // Log for debugging if needed (limited)
-      debugPrint('File data received: ${result['Base64']?.toString().substring(0, 50)}...');
+      return result;
     } catch (e) {
        if (mounted) {
          UIConstants.showErrorSnackBar(context, 'Download failed: $e');
        }
+       return {};
     }
+  }
+
+  Future<void> _viewFile(String? filePath) async {
+      if (filePath == null || filePath.isEmpty) return;
+
+      // Show loading
+      showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => const Center(child: CircularProgressIndicator()),
+      );
+
+      try {
+          final result = await _downloadFile(filePath);
+          Navigator.pop(context); // Close loading
+
+          if (result.isEmpty || result['Base64'] == null) return;
+
+          var base64String = result['Base64'].toString();
+          if (base64String.contains(',')) {
+            base64String = base64String.split(',').last;
+          }
+          final bytes = base64Decode(base64String);
+          final fileName = filePath.split('/').last.toLowerCase();
+          
+          if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.png')) {
+              if (mounted) {
+                  showDialog(
+                      context: context,
+                      builder: (ctx) => Dialog(
+                          child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                  AppBar(
+                                      title: Text(fileName),
+                                      leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                                  ),
+                                  Expanded(
+                                      child: InteractiveViewer(
+                                          minScale: 0.5,
+                                          maxScale: 4.0,
+                                          child: Image.memory(bytes),
+                                      ),
+                                  ),
+                              ],
+                          ),
+                      ),
+                  );
+              }
+          } else if (fileName.endsWith('.pdf')) {
+               if (mounted) {
+                  showDialog(
+                      context: context,
+                      builder: (ctx) => Dialog(
+                          child: Column(
+                              children: [
+                                  AppBar(
+                                      title: Text(fileName),
+                                      leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                                  ),
+                                  Expanded(child: SfPdfViewer.memory(bytes)),
+                              ],
+                          ),
+                      ),
+                  );
+              }
+          } else {
+              if (mounted) {
+                   UIConstants.showSuccessSnackBar(context, 'File fetched (${bytes.length} bytes). View not supported for this type.');
+              }
+          }
+
+      } catch (e) {
+          Navigator.pop(context); // Close loading if error
+          if (mounted) {
+               UIConstants.showErrorSnackBar(context, 'Error viewing file: $e');
+          }
+      }
   }
 
   Future<void> _onDelete(ITFileRequest item) async {
@@ -678,6 +754,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                                 });
                             },
                         ),
+                        onTap: () => _viewFile(file['FilePath']),
                     )),
                 ],
 
