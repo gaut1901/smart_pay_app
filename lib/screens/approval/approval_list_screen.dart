@@ -638,7 +638,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
                   children: [
                     const Text('TKT.NO', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
-                    Text(ticketNo.toString(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    Text(ticketNo.toString(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   ],
                 ),
                 Column(
@@ -646,7 +646,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
                   children: [
                     const Text('REQ. DATE', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
-                    Text(reqDate, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                    Text(reqDate, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ],
@@ -661,7 +661,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
               children: [
                 const Text('EMPLOYEE NAME', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text(empName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
+                Text(empName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -671,7 +671,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
                         children: [
                           const Text('SALARY PERIOD', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 4),
-                          Text(salaryMonth, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                          Text(salaryMonth, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                         ],
                       ),
                     ),
@@ -681,7 +681,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
                         children: [
                           const Text('ADJ. AMOUNT', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 4),
-                          Text(adjAmount.toString(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.redAccent)),
+                          Text(adjAmount.toString(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.redAccent)),
                         ],
                       ),
                     ),
@@ -690,7 +690,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
                 const SizedBox(height: 16),
                 const Text('DEDUCTION', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text(dedName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                Text(dedName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
               ],
             ),
           ),
@@ -821,7 +821,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
                        const SizedBox(height: 4),
                        Text(
                          e.value,
-                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black87),
+                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87),
                          overflow: TextOverflow.ellipsis,
                          maxLines: 2,
                        )
@@ -927,7 +927,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 10, fontWeight: FontWeight.bold)),
-        Text('$value', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        Text('$value', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
       ],
     );
   }
@@ -938,13 +938,13 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
       children: [
         SizedBox(
           width: 100,
-          child: Text('$label:', style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+          child: Text('$label:', style: TextStyle(color: Colors.grey.shade700, fontSize: 11)),
         ),
         Expanded(
           child: Text(
             value,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: boldValue ? FontWeight.bold : FontWeight.normal,
               color: color ?? Colors.black87,
             ),
@@ -954,3 +954,5 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
     );
   }
 }
+
+

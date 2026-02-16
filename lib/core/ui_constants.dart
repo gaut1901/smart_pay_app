@@ -142,12 +142,17 @@ class UIConstants {
   
   /// Build View action button (Blue)
   static Widget buildViewButton({required VoidCallback onPressed}) {
-    return IconButton(
-      icon: const Icon(Icons.visibility, color: infoBlue, size: 20),
-      tooltip: 'View',
-      onPressed: onPressed,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
+    return SizedBox(
+      width: 24,
+      height: 24,
+      child: IconButton(
+        icon: const Icon(Icons.visibility, color: infoBlue, size: 18),
+        tooltip: 'View',
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        iconSize: 18,
+      ),
     );
   }
   
@@ -156,12 +161,17 @@ class UIConstants {
     VoidCallback? onPressed,
     String tooltip = 'Edit',
   }) {
-    return IconButton(
-      icon: const Icon(Icons.edit, color: updateOrange, size: 20),
-      tooltip: tooltip,
-      onPressed: onPressed,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
+    return SizedBox(
+      width: 24,
+      height: 24,
+      child: IconButton(
+        icon: const Icon(Icons.edit, color: updateOrange, size: 18),
+        tooltip: tooltip,
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        iconSize: 18,
+      ),
     );
   }
   
@@ -170,12 +180,17 @@ class UIConstants {
     VoidCallback? onPressed,
     String tooltip = 'Delete',
   }) {
-    return IconButton(
-      icon: const Icon(Icons.delete, color: primaryRed, size: 20),
-      tooltip: tooltip,
-      onPressed: onPressed,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
+    return SizedBox(
+      width: 24,
+      height: 24,
+      child: IconButton(
+        icon: const Icon(Icons.delete, color: primaryRed, size: 18),
+        tooltip: tooltip,
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        iconSize: 18,
+      ),
     );
   }
   
@@ -191,9 +206,9 @@ class UIConstants {
       mainAxisSize: MainAxisSize.min,
       children: [
         buildViewButton(onPressed: onView),
-        const SizedBox(width: 8),
+        const SizedBox(width: 1),
         buildEditButton(onPressed: onEdit, tooltip: editTooltip),
-        const SizedBox(width: 8),
+        const SizedBox(width: 1),
         buildDeleteButton(onPressed: onDelete, tooltip: deleteTooltip),
       ],
     );
