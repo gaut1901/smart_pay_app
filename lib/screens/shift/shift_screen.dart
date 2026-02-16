@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smartpay_flutter/core/ui_constants.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants.dart';
@@ -96,7 +97,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Shift Schedule', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: Text('Shift Schedule', style: UIConstants.pageTitleStyle),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
@@ -179,7 +180,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
         headerStyle: const HeaderStyle(
           formatButtonVisible: false,
           titleCentered: true,
-          titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+          titleTextStyle: TextStyle(fontSize: UIConstants.fontSizePageTitle, fontWeight: FontWeight.bold, color: AppColors.primary),
         ),
         calendarBuilders: CalendarBuilders(
           markerBuilder: (context, date, events) {
@@ -219,7 +220,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
             children: [
               Text(
                 _selectedDay != null ? DateFormat('EEEE, MMM d, yyyy').format(_selectedDay!) : 'Select a date',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: UIConstants.fontSizeSectionHeader, color: AppColors.primary),
               ),
               if (selectedShift.isNotEmpty)
                 Container(
@@ -228,9 +229,9 @@ class _ShiftScreenState extends State<ShiftScreen> {
                     color: _hexToColor(selectedShift.first.colorCode),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Shift Assigned',
-                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizeSmall, fontWeight: FontWeight.bold),
                   ),
                 ),
             ],
@@ -257,11 +258,11 @@ class _ShiftScreenState extends State<ShiftScreen> {
                   children: [
                     Text(
                       selectedShift.first.shiftName,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
+                      style: TextStyle(fontSize: UIConstants.fontSizePageTitle, fontWeight: FontWeight.bold, color: AppColors.textDark),
                     ),
-                    const Text(
+                    Text(
                       'Shift Timing',
-                      style: TextStyle(color: AppColors.textGray, fontSize: 14),
+                      style: TextStyle(color: AppColors.textGray, fontSize: UIConstants.fontSizeBody),
                     ),
                   ],
                 ),

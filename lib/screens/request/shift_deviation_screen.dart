@@ -392,7 +392,7 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Shift Deviation', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: const Text('Shift Deviation', style: UIConstants.pageTitleStyle),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(
@@ -432,7 +432,7 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
               children: [
                 Text(
                   _currentAction == 'Create' ? 'New Shift Deviation Request' : 'Update Shift Deviation', 
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+                  style: UIConstants.sectionHeaderStyle
                 ),
                 const SizedBox(height: 20),
                 _buildDatePickerField('Deviation Date', _deviationDate, (date) {
@@ -533,7 +533,7 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Shift Deviation History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text('Shift Deviation History', style: UIConstants.sectionHeaderStyle),
                   const SizedBox(height: 20),
                   _buildTableActionsRow(),
                   const SizedBox(height: 16),
@@ -607,12 +607,12 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+          Text(label, style: UIConstants.tinyTextStyle),
           const SizedBox(height: 4),
           Text(
             value, 
             style: TextStyle(
-              fontSize: 12, 
+              fontSize: UIConstants.fontSizeSmall, 
               fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
               color: isHighlight ? AppColors.primary : const Color(0xFF1E1E1E),
             ),
@@ -703,7 +703,7 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Showing 1 to $count of $count entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text('Showing 1 to $count of $count entries', style: UIConstants.smallTextStyle.copyWith(color: Colors.grey.shade600)),
           const Row(
             children: [
               Icon(Icons.chevron_left, color: Colors.grey),
@@ -720,7 +720,7 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(label, style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
@@ -752,7 +752,7 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(label, style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -762,7 +762,7 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
               isExpanded: true,
               value: (value != null && items.contains(value)) ? value : null,
               hint: const Text('Select option'),
-              items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 14)))).toList(),
+              items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(fontSize: UIConstants.fontSizeBody)))).toList(),
               onChanged: onChanged,
             ),
           ),
@@ -775,15 +775,15 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(label, style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
           maxLines: maxLines,
-          style: const TextStyle(fontSize: 14),
+          style: TextStyle(fontSize: UIConstants.fontSizeBody),
           decoration: InputDecoration(
             hintText: placeholder,
-            hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
+            hintStyle: TextStyle(fontSize: UIConstants.fontSizeBody, color: Colors.grey),
             contentPadding: const EdgeInsets.all(12),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
@@ -798,7 +798,7 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Employees', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        const Text('Employees', style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         InkWell(
           onTap: () {
@@ -819,7 +819,7 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
                             final name = emp['EmpName']?.toString() ?? '';
                             final isSelected = _selectedEmployees.contains(name);
                             return CheckboxListTile(
-                              title: Text(name, style: const TextStyle(fontSize: 14)),
+                              title: Text(name, style: TextStyle(fontSize: UIConstants.fontSizeBody)),
                               value: isSelected,
                               onChanged: (val) {
                                 setDialogState(() {
@@ -861,7 +861,7 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
                   child: Text(
                     _selectedEmployees.isEmpty ? 'Select employees' : _selectedEmployees.join(', '),
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: UIConstants.fontSizeBody,
                       color: _selectedEmployees.isEmpty ? Colors.grey : Colors.black,
                     ),
                     maxLines: 1,

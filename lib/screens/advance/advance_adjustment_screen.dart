@@ -401,7 +401,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Advance Adjustment', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: const Text('Advance Adjustment', style: UIConstants.pageTitleStyle),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(
@@ -441,7 +441,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
               children: [
                     Text(
                       _currentAction == 'Create' ? 'New Adjustment Request' : 'Update Adjustment Request', 
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+                      style: UIConstants.sectionHeaderStyle
                     ),
                 const SizedBox(height: 20),
                 _buildDatePickerField('Request Date', _selectedDate, (date) => setState(() => _selectedDate = date)),
@@ -546,7 +546,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Advance Adjustment History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text('Advance Adjustment History', style: UIConstants.sectionHeaderStyle),
                   const SizedBox(height: 20),
                   _buildTableActionsRow(),
                   const SizedBox(height: 16),
@@ -621,12 +621,12 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+          Text(label, style: UIConstants.tinyTextStyle),
           const SizedBox(height: 4),
           Text(
             value, 
             style: TextStyle(
-              fontSize: 12, 
+              fontSize: UIConstants.fontSizeSmall, 
               fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
               color: isHighlight ? AppColors.primary : const Color(0xFF1E1E1E),
             ),
@@ -718,7 +718,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Showing 1 to $count of $count entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text('Showing 1 to $count of $count entries', style: UIConstants.smallTextStyle.copyWith(color: Colors.grey.shade600)),
           const Row(
             children: [
               Icon(Icons.chevron_left, color: Colors.grey),
@@ -736,7 +736,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(label, style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
@@ -768,7 +768,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(label, style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -791,7 +791,7 @@ class _AdvanceAdjustmentScreenState extends State<AdvanceAdjustmentScreen> with 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(label, style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         TextField(
           controller: controller,

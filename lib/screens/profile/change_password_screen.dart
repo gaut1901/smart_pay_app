@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smartpay_flutter/core/ui_constants.dart';
 import 'package:smartpay_flutter/data/services/auth_service.dart';
 import '../../core/constants.dart';
 import '../../data/services/profile_service.dart';
@@ -85,7 +86,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Change Password', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: Text('Change Password', style: UIConstants.pageTitleStyle),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -118,7 +119,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                             child: Text(
                               'Change Password',
                               style: TextStyle(
-                                fontSize: 24,
+                                fontSize: UIConstants.fontSizePageTitle,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black.withOpacity(0.7),
                               ),
@@ -157,7 +158,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                                       icon: _isSaving 
                                           ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                                           : const Icon(Icons.save_outlined, color: Colors.white),
-                                      label: const Text('Update', style: TextStyle(color: Colors.white, fontSize: 16)),
+                                      label: Text('Update', style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizeSectionHeader)),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: const Color(0xFF0F8654), // Green from image
                                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -182,9 +183,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.bold,
-          fontSize: 16,
+          fontSize: UIConstants.fontSizeSectionHeader,
           color: Colors.black87,
         ),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smartpay_flutter/core/ui_constants.dart';
 import '../../core/constants.dart';
 import '../../data/services/request_service.dart';
 
@@ -46,7 +47,7 @@ class _RequestScreenState extends State<RequestScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F9), // Matching legacy background
       appBar: AppBar(
-        title: const Text('Request', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: Text('Request', style: UIConstants.pageTitleStyle),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
@@ -231,8 +232,8 @@ class _RequestScreenState extends State<RequestScreen> {
               child: Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
+                style: TextStyle(
+                  fontSize: UIConstants.fontSizeBody,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF374151),
                 ),

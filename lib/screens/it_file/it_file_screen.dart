@@ -428,13 +428,13 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                 if (attachments.isNotEmpty) ...[
                   const Padding(
                     padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    child: Text('Attachments', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary)),
+                    child: Text('Attachments', style: TextStyle(fontWeight: FontWeight.bold, fontSize: UIConstants.fontSizeBody, color: AppColors.primary)),
                   ),
                   ...attachments.map((file) {
                     final fileName = file['FilePath']?.toString().split('/').last ?? 'Attachment';
                     return ListTile(
                       leading: const Icon(Icons.attachment, size: 20),
-                      title: Text(fileName, style: const TextStyle(fontSize: 13, decoration: TextDecoration.underline, color: Colors.blue)),
+                      title: Text(fileName, style: TextStyle(fontSize: UIConstants.fontSizeSmall, decoration: TextDecoration.underline, color: Colors.blue)),
                       onTap: () => _viewFile(file['FilePath']),
                       dense: true,
                     );
@@ -615,7 +615,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Income Tax File', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: const Text('Income Tax File', style: UIConstants.pageTitleStyle),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(
@@ -664,7 +664,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                 Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                        Text('Income Tax File ($_action)', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text('Income Tax File ($_action)', style: UIConstants.sectionHeaderStyle),
                         if (_action != 'Create')
                             IconButton(icon: const Icon(Icons.close), onPressed: _cancelEdit, tooltip: 'Cancel'),
                     ],
@@ -773,14 +773,14 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                             ),
                             child: _isSubmitting 
                               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                              : Text(_action == 'Modify' ? 'Update Application' : 'Submit Request', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                              : Text(_action == 'Modify' ? 'Update Application' : 'Submit Request', style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizeSectionHeader)),
                         ),
                         if (_action != 'Create') ...[
                             const SizedBox(height: 10),
                             ElevatedButton.icon(
                                 onPressed: _cancelEdit,
                                 icon: const Icon(Icons.cancel_outlined, color: Colors.white, size: 20),
-                                label: Text(_action == 'View' ? 'Back' : 'Cancel Edit', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                                label: Text(_action == 'View' ? 'Back' : 'Cancel Edit', style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizeSectionHeader)),
                                 style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFFE53935),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -827,7 +827,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Income Tax History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text('Income Tax History', style: UIConstants.sectionHeaderStyle),
                   const SizedBox(height: 20),
                   _buildTableActionsRow(),
                   const SizedBox(height: 16),
@@ -902,12 +902,12 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+          Text(label, style: UIConstants.tinyTextStyle),
           const SizedBox(height: 4),
           Text(
             value, 
             style: TextStyle(
-              fontSize: 12, 
+              fontSize: UIConstants.fontSizeSmall, 
               fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
               color: isHighlight ? AppColors.primary : const Color(0xFF1E1E1E),
             ),
@@ -961,7 +961,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                 ),
                 child: Text(
                   DateFormat('dd-MM-yyyy').format(_historyFromDate),
-                  style: const TextStyle(fontSize: 14),
+                  style: TextStyle(fontSize: UIConstants.fontSizeBody),
                 ),
               ),
             ),
@@ -981,7 +981,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                 ),
                 child: Text(
                   DateFormat('dd-MM-yyyy').format(_historyToDate),
-                  style: const TextStyle(fontSize: 14),
+                  style: TextStyle(fontSize: UIConstants.fontSizeBody),
                 ),
               ),
             ),
@@ -1051,7 +1051,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Showing 1 to $count of $count entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text('Showing 1 to $count of $count entries', style: UIConstants.smallTextStyle.copyWith(color: Colors.grey.shade600)),
           const Row(
             children: [
               Icon(Icons.chevron_left, color: Colors.grey),
@@ -1068,7 +1068,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(label, style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         InkWell(
           onTap: isReadOnly ? null : () async {
@@ -1105,7 +1105,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (label.isNotEmpty) ...[
-            Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            Text(label, style: UIConstants.bodyTextStyle),
             const SizedBox(height: 8),
         ],
         Container(
@@ -1127,7 +1127,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                       e, 
                       maxLines: 1, 
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14),
+                      style: TextStyle(fontSize: UIConstants.fontSizeBody),
                   )
               )).toList(),
               onChanged: isReadOnly ? null : onChanged,
@@ -1142,7 +1142,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(label, style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
@@ -1165,7 +1165,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('New Attachment', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        const Text('New Attachment', style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         InkWell(
           onTap: _pickFile,

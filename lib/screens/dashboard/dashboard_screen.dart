@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:smartpay_flutter/core/ui_constants.dart';
 import '../../core/constants.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/dashboard_service.dart';
@@ -202,7 +203,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               title: const Text(
                 'IT File',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: UIConstants.fontSizePageTitle,
                   color: AppColors.textGray,
                 ),
               ),
@@ -299,7 +300,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       title: Text(
         title,
         style: TextStyle(
-          fontSize: 20,
+          fontSize: UIConstants.fontSizePageTitle,
           fontWeight: FontWeight.w500,
           color: titleColor ?? AppColors.textGray,
         ),
@@ -333,8 +334,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(emp['EmpName'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text('${emp['DesName'] ?? ''} | ${emp['DeptName'] ?? ''}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  Text(emp['EmpName'] ?? '', style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizePageTitle, fontWeight: FontWeight.bold)),
+                  Text('${emp['DesName'] ?? ''} | ${emp['DeptName'] ?? ''}', style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizeSmall)),
                 ],
               ),
             ),
@@ -370,8 +371,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
-        Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
+        Text(value, style: TextStyle(fontSize: UIConstants.fontSizeSmall, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+        Text(label, style: TextStyle(fontSize: UIConstants.fontSizeTiny, color: Color(0xFF6B7280))),
       ],
     );
   }
@@ -431,7 +432,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
               elevation: 0,
             ),
-            child: const Text('Apply', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+            child: Text('Apply', style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizeBody, fontWeight: FontWeight.bold)),
           ),
         )
       ],
@@ -450,7 +451,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: const Color(0xFFF8F9FA),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF374151))),
+              child: Text(label, style: TextStyle(fontSize: UIConstants.fontSizeBody, fontWeight: FontWeight.w500, color: Color(0xFF374151))),
             ),
           ),
           const SizedBox(width: 12),
@@ -464,7 +465,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Text(
               value, 
               textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1F2937))
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: UIConstants.fontSizeSectionHeader, color: Color(0xFF1F2937))
             ),
           ),
         ],
@@ -499,11 +500,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Total Hours', style: TextStyle(fontSize: 12, color: Colors.grey)),
-            if (attnIn.isNotEmpty) Text(attnIn, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            const Text('Total Hours', style: TextStyle(fontSize: UIConstants.fontSizeSmall, color: Colors.grey)),
+            if (attnIn.isNotEmpty) Text(attnIn, style: TextStyle(fontSize: UIConstants.fontSizeSmall, color: Colors.grey)),
           ],
         ),
-        Text('${data?['TotalHours'] ?? '0:00'} hrs', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text('${data?['TotalHours'] ?? '0:00'} hrs', style: TextStyle(fontSize: UIConstants.fontSizeSmall, color: Colors.grey)),
         const SizedBox(height: 80), 
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -513,7 +514,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           child: Text(
             'Production : ${_formatProduction(data?['WorkedHours'])}',
-            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+            style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizeTiny, fontWeight: FontWeight.bold),
           ),
         ),
         const SizedBox(height: 12),
@@ -523,7 +524,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Icon(Icons.login, size: 14, color: Colors.black),
             Text(
               isPunchedIn ? ' Punch In at $checkIn' : ' Not Punched In',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: UIConstants.fontSizeSmall, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -626,9 +627,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const Spacer(),
           Text(
             value == '0:00 / 0:00' ? '0 / 0' : value, 
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: UIConstants.fontSizePageTitle)
           ),
-          Text(title, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+          Text(title, style: TextStyle(fontSize: UIConstants.fontSizeTiny, color: Colors.grey)),
         ],
       ),
     );
@@ -709,8 +710,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
             const Spacer(),
-            Text('${value.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            Text(title, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            Text('${value.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: UIConstants.fontSizePageTitle)),
+            Text(title, style: TextStyle(fontSize: UIConstants.fontSizeTiny, color: Colors.grey)),
           ],
         ),
       ),
@@ -738,11 +739,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     backgroundColor: color.withValues(alpha: 0.1),
                     child: Icon(Icons.person, color: color),
                   ),
-                  title: Text(member['EmpName'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  title: Text(member['EmpName'] ?? '', style: TextStyle(fontSize: UIConstants.fontSizeBody, fontWeight: FontWeight.bold)),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(member['DesName'] ?? '', style: const TextStyle(fontSize: 12)),
+                      Text(member['DesName'] ?? '', style: TextStyle(fontSize: UIConstants.fontSizeSmall)),
                       const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -752,7 +753,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         child: Text(
                           member['DeptName'] ?? '', 
-                          style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold)
+                          style: TextStyle(fontSize: UIConstants.fontSizeTiny, color: color, fontWeight: FontWeight.bold)
                         ),
                       ),
                     ],
@@ -762,7 +763,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             trailing: TextButton(
               onPressed: () => Navigator.pushNamed(context, '/teams'),
-              child: const Text('View All', style: TextStyle(fontSize: 12)),
+              child: Text('View All', style: TextStyle(fontSize: UIConstants.fontSizeSmall)),
             ),
           ),
         if (approvals.isNotEmpty)
@@ -785,8 +786,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Expanded(child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(approval['ReqType'] ?? 'Request', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        Text(approval['Status'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(approval['ReqType'] ?? 'Request', style: TextStyle(fontWeight: FontWeight.bold, fontSize: UIConstants.fontSizeBody)),
+                        Text(approval['Status'] ?? '', style: TextStyle(fontSize: UIConstants.fontSizeSmall, color: Colors.grey)),
                       ],
                     )),
                     ElevatedButton(
@@ -798,7 +799,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         minimumSize: const Size(60, 30),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                       ), 
-                      child: const Text('View', style: TextStyle(color: Colors.white, fontSize: 11))
+                      child: Text('View', style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizeTiny))
                     ),
                   ],
                 ),
@@ -806,7 +807,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             trailing: TextButton(
               onPressed: () => Navigator.pushNamed(context, '/approval'),
-              child: const Text('View All', style: TextStyle(fontSize: 12)),
+              child: Text('View All', style: TextStyle(fontSize: UIConstants.fontSizeSmall)),
             ),
           ),
       ],
@@ -830,7 +831,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(title, style: TextStyle(fontSize: UIConstants.fontSizeSectionHeader, fontWeight: FontWeight.bold)),
                 if (trailing != null) trailing,
               ],
             ),

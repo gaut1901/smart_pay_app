@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:smartpay_flutter/core/ui_constants.dart';
 import '../../core/constants.dart';
 import '../../data/models/profile_model.dart';
 import '../../data/services/auth_service.dart';
@@ -49,7 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('My Profile', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: Text('My Profile', style: UIConstants.pageTitleStyle),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
@@ -195,16 +196,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 15),
           Text(
             data?.empName ?? 'Employee',
-            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+            style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizePageTitle, fontWeight: FontWeight.bold),
           ),
           Text(
             data?.empCode ?? '',
-            style: const TextStyle(color: Colors.white70, fontSize: 16),
+            style: TextStyle(color: Colors.white70, fontSize: UIConstants.fontSizeSectionHeader),
           ),
           if (data?.desName != null)
             Text(
               data!.desName!,
-              style: const TextStyle(color: Colors.white60, fontSize: 14),
+              style: TextStyle(color: Colors.white60, fontSize: UIConstants.fontSizeBody),
             ),
         ],
       ),
@@ -231,7 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
+            style: TextStyle(fontSize: UIConstants.fontSizeSectionHeader, fontWeight: FontWeight.bold, color: AppColors.primary),
           ),
           const Divider(height: 25),
           ...validChildren,
@@ -258,7 +259,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             AppBar(
-              title: Text(title, style: const TextStyle(fontSize: 16)),
+              title: Text(title, style: TextStyle(fontSize: UIConstants.fontSizeSectionHeader)),
               automaticallyImplyLeading: false,
               actions: [IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context))],
             ),
@@ -316,7 +317,7 @@ class _InfoRow extends StatelessWidget {
         children: [
           Expanded(
             flex: 2,
-            child: Text(label, style: const TextStyle(color: AppColors.textGray, fontSize: 14)),
+            child: Text(label, style: TextStyle(color: AppColors.textGray, fontSize: UIConstants.fontSizeBody)),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -326,14 +327,14 @@ class _InfoRow extends StatelessWidget {
               children: [
                 Text(
                   value, 
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textDark),
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: UIConstants.fontSizeBody, color: AppColors.textDark),
                   textAlign: TextAlign.end,
                 ),
                 if (onView != null)
                   TextButton.icon(
                     onPressed: onView,
                     icon: const Icon(Icons.visibility, size: 16),
-                    label: const Text('View Document', style: TextStyle(fontSize: 12)),
+                    label: Text('View Document', style: TextStyle(fontSize: UIConstants.fontSizeSmall)),
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
                       minimumSize: const Size(0, 30),

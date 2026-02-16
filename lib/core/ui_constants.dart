@@ -40,16 +40,65 @@ class UIConstants {
   static const Color infoBlue = Color(0xFF1B84FF);
 
   // ============================================================================
-  // TYPOGRAPHY
+  // TYPOGRAPHY SYSTEM
   // ============================================================================
   
   /// Font family from SmartPayV4
   static const String fontFamily = 'Calibri';
   
+  // Font Size Scale
+  static const double fontSizePageTitle = 20.0;      // AppBar titles
+  static const double fontSizeSectionHeader = 16.0;  // Card/section titles
+  static const double fontSizeBody = 14.0;           // Form labels, normal text
+  static const double fontSizeSmall = 12.0;          // Helper text, metadata
+  static const double fontSizeTiny = 11.0;           // Table labels, compact info
+  
+  // Text Styles
+  
+  /// Page title style - Used in AppBar
+  static const TextStyle pageTitleStyle = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: fontSizePageTitle,
+    fontWeight: FontWeight.bold,
+    color: Colors.white,
+  );
+  
+  /// Section header style - Used for card titles and section headings
+  static const TextStyle sectionHeaderStyle = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: fontSizeSectionHeader,
+    fontWeight: FontWeight.bold,
+    color: navyBlack,
+  );
+  
+  /// Body text style - Used for form labels and normal text
+  static const TextStyle bodyTextStyle = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: fontSizeBody,
+    fontWeight: FontWeight.w500,
+    color: rowText,
+  );
+  
+  /// Small text style - Used for helper text and metadata
+  static const TextStyle smallTextStyle = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: fontSizeSmall,
+    fontWeight: FontWeight.normal,
+    color: Colors.grey,
+  );
+  
+  /// Tiny text style - Used for table labels and compact info
+  static const TextStyle tinyTextStyle = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: fontSizeTiny,
+    fontWeight: FontWeight.w500,
+    color: Colors.grey,
+  );
+  
   /// Table header text style
   static const TextStyle tableHeaderStyle = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 16,
+    fontSize: fontSizeSectionHeader,
     fontWeight: FontWeight.w600,
     color: navyBlack,
   );
@@ -57,14 +106,14 @@ class UIConstants {
   /// Table row text style
   static const TextStyle tableRowStyle = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 14,
+    fontSize: fontSizeBody,
     fontWeight: FontWeight.w600,
     color: rowText,
   );
   
   /// Button text style
   static const TextStyle buttonTextStyle = TextStyle(
-    fontSize: 16,
+    fontSize: fontSizeSectionHeader,
     color: Colors.white,
     fontWeight: FontWeight.w500,
   );

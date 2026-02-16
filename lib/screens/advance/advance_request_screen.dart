@@ -396,7 +396,7 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Advance Request', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: const Text('Advance Request', style: UIConstants.pageTitleStyle),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(
@@ -436,7 +436,7 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
               children: [
                     Text(
                       _currentAction == 'Create' ? 'New Advance/Loan Request' : 'Update Advance Request', 
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+                      style: UIConstants.sectionHeaderStyle
                     ),
                 const SizedBox(height: 20),
                 _buildDatePickerField('Requested Date', _selectedDate, (date) => setState(() => _selectedDate = date)),
@@ -535,7 +535,7 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Advance History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text('Advance History', style: UIConstants.sectionHeaderStyle),
                   const SizedBox(height: 20),
                   _buildTableActionsRow(),
                   const SizedBox(height: 16),
@@ -610,10 +610,10 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+          Text(label, style: UIConstants.tinyTextStyle),
           const SizedBox(height: 4),
           Text(value, style: TextStyle(
-            fontSize: 13, 
+            fontSize: UIConstants.fontSizeSmall, 
             fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
             color: isHighlight ? AppColors.primary : const Color(0xFF1E1E1E),
           )),
@@ -702,7 +702,7 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Showing 1 to $count of $count entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text('Showing 1 to $count of $count entries', style: UIConstants.smallTextStyle.copyWith(color: Colors.grey.shade600)),
           const Row(
             children: [
               Icon(Icons.chevron_left, color: Colors.grey),
@@ -720,7 +720,7 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(label, style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
@@ -753,7 +753,7 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (label.isNotEmpty) ...[
-            Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            Text(label, style: UIConstants.bodyTextStyle),
             const SizedBox(height: 8),
         ],
         Container(
@@ -774,7 +774,7 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
                       e, 
                       maxLines: 1, 
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14),
+                      style: TextStyle(fontSize: UIConstants.fontSizeBody),
                   )
               )).toList(),
               onChanged: isReadOnly ? null : onChanged,
@@ -789,7 +789,7 @@ class _AdvanceRequestScreenState extends State<AdvanceRequestScreen> with Single
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(label, style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         TextField(
           controller: controller,

@@ -370,7 +370,7 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
           AuthService.memberName.isNotEmpty 
             ? 'Reimbursement - ${AuthService.memberName}' 
             : 'Reimbursement', 
-          style: const TextStyle(color: Colors.white, fontSize: 18)
+          style: UIConstants.pageTitleStyle
         ),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -409,7 +409,7 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('New Reimbursement Request', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Text('New Reimbursement Request', style: UIConstants.sectionHeaderStyle),
                     const SizedBox(height: 20),
                     _buildDatePickerField('Expense Date', _selectedDate, (date) => setState(() => _selectedDate = date)),
                     const SizedBox(height: 15),
@@ -423,13 +423,13 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
                       const SizedBox(height: 8),
                       Text(
                         _unlimited == "true" ? 'Limit: Unlimited' : 'Limit: Max $_maxAllowed',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: UIConstants.fontSizeSmall, fontWeight: FontWeight.bold),
                       ),
                     ],
                     const SizedBox(height: 15),
                     _buildTextField('Amount', 'Enter amount', _amountController, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
                     const SizedBox(height: 15),
-                    const Text('Attachment', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                    const Text('Attachment', style: UIConstants.bodyTextStyle),
                     const SizedBox(height: 8),
                     InkWell(
                       onTap: _pickFile,
@@ -474,7 +474,7 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
                         ),
                         child: _isSubmitting 
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text(_isEditing ? 'Update Request' : 'Submit Request', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                          : Text(_isEditing ? 'Update Request' : 'Submit Request', style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizeSectionHeader)),
                       ),
                     ),
                     if (_isEditing) ...[
@@ -546,7 +546,7 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Reimbursement History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text('Reimbursement History', style: UIConstants.sectionHeaderStyle),
                   const SizedBox(height: 20),
                   _buildTableActionsRow(),
                   const SizedBox(height: 16),
@@ -643,7 +643,7 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Showing 1 to $count of $count entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text('Showing 1 to $count of $count entries', style: UIConstants.smallTextStyle.copyWith(color: Colors.grey.shade600)),
           const Row(
             children: [
               Icon(Icons.chevron_left, color: Colors.grey),
@@ -708,12 +708,12 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+          Text(label, style: UIConstants.tinyTextStyle),
           const SizedBox(height: 4),
           Text(
             value, 
             style: TextStyle(
-              fontSize: 12, 
+              fontSize: UIConstants.fontSizeSmall, 
               fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
               color: isHighlight ? AppColors.primary : const Color(0xFF1E1E1E),
             ),
@@ -758,7 +758,7 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(label, style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
@@ -790,7 +790,7 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(label, style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -813,7 +813,7 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(label, style: UIConstants.bodyTextStyle),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
