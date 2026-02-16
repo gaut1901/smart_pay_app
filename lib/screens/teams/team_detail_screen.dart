@@ -29,6 +29,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
     super.initState();
     // Set the member emp code globally to "act as" this member for child screens
     AuthService.memberEmpCode = widget.empCode;
+    AuthService.memberName = widget.member?.empName ?? "";
     
     if (widget.member != null) {
       _member = widget.member;
@@ -43,6 +44,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
   void dispose() {
     // Reset the member emp code when leaving the detail screen
     AuthService.memberEmpCode = "0";
+    AuthService.memberName = "";
     super.dispose();
   }
 
@@ -138,7 +140,8 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
 
   Widget _buildProfileHeader() {
     return Container(
-      margin: const EdgeInsets.all(12),
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,

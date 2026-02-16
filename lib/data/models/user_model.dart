@@ -16,6 +16,7 @@ class User {
   final String domainName;
   final String fDate;
   final String tDate;
+  final String eUserName;
 
   User({
     required this.userid,
@@ -33,6 +34,7 @@ class User {
     required this.domainName,
     required this.fDate,
     required this.tDate,
+    required this.eUserName,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -52,6 +54,7 @@ class User {
       domainName: json['DomainName']?.toString() ?? '',
       fDate: json['FDate']?.toString() ?? '',
       tDate: json['TDate']?.toString() ?? '',
+      eUserName: json['EUserName']?.toString() ?? '',
     );
   }
 

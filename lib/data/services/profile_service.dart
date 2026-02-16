@@ -228,4 +228,61 @@ class ProfileService {
       rethrow;
     }
   }
+
+  Future<Map<String, dynamic>> getChangePassData() async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.changePassDisplay}/?id=${user.empCode}&action=Modify');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: user.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return jsonDecode(data['response']);
+      } else {
+        throw Exception('Failed to load change password data: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> changePassword(String username, String password) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.changePassSubmit}/');
+    
+    final body = {
+      "UserName": username,
+      "Password": password,
+      "Actions": "Modify",
+      "EditId": user.empCode,
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: user.toHeaders(),
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final result = jsonDecode(data['response']);
+        if (result['JSONResult']?.toString() != "0") {
+          throw Exception(result['error'] ?? 'Failed to change password');
+        }
+      } else {
+        throw Exception('Failed to change password: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

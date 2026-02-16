@@ -81,4 +81,27 @@ class AttendanceService {
       rethrow;
     }
   }
+
+  Future<Map<String, dynamic>> punchOut() async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.punchOut}/');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: user.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return jsonDecode(data['response']);
+      } else {
+        throw Exception('Failed to punch out: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

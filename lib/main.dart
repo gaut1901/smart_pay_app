@@ -21,6 +21,7 @@ import 'screens/request/shift_deviation_screen.dart';
 import 'screens/approval/approval_screen.dart';
 import 'screens/teams/teams_screen.dart';
 import 'screens/teams/team_detail_screen.dart';
+import 'screens/profile/change_password_screen.dart';
 import 'data/models/team_model.dart';
 import 'core/constants.dart';
 
@@ -68,6 +69,7 @@ class SmartPayApp extends StatelessWidget {
         '/shift_deviation': (context) => const ShiftDeviationScreen(),
         '/approval': (context) => const ApprovalScreen(),
         '/teams': (context) => const TeamsScreen(),
+        '/change_password': (context) => const ChangePasswordScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/team_detail') {

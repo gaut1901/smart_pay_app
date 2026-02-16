@@ -25,7 +25,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadDashboardData();
   }
 
-  Future<void> _handlePunchIn() async {
+  Future<void> _handlePunchAction(bool isPunchedIn) async {
     try {
       showDialog(
         context: context,
@@ -33,13 +33,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      await _attendanceService.punchIn();
+      Map<String, dynamic> responseData;
+      if (isPunchedIn) {
+        responseData = await _attendanceService.punchOut();
+      } else {
+        responseData = await _attendanceService.punchIn();
+      }
       
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
-        _loadDashboardData(); // Refresh dashboard
+        
+        // Update local state immediately with response data
+        setState(() {
+          if (_dashboardData != null) {
+            _dashboardData!['CheckIn'] = responseData['CheckIn'];
+            _dashboardData!['CheckOut'] = responseData['CheckOut'];
+            _dashboardData!['WorkedHours'] = responseData['WorkedHours'];
+            _dashboardData!['TotalHours'] = responseData['TotalHours'];
+            _dashboardData!['AttnIn'] = responseData['AttnIn'];
+          }
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Punched in successfully')),
+          SnackBar(content: Text(isPunchedIn ? 'Punched out successfully' : 'Punched in successfully')),
         );
       }
     } catch (e) {
@@ -60,15 +76,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     try {
       final data = await _dashboardService.getDashboardData(DateTime.now());
-      setState(() {
-        _dashboardData = data;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _dashboardData = data;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString().replaceAll('Exception: ', '');
-        _isLoading = false;
-      });
+      if (mounted) {
+        final errorMsg = e.toString().replaceAll('Exception: ', '');
+        if (errorMsg.contains('User not logged in')) {
+          // Clear session and redirect to login
+          AuthService().logout();
+          Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+          return;
+        }
+        
+        setState(() {
+          _error = errorMsg;
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -228,6 +256,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onTap: () {
               Navigator.pop(context);
               Navigator.pushNamed(context, '/shift');
+            },
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.lock_outline,
+            title: 'Change Password',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/change_password');
             },
           ),
           const SizedBox(height: 20),
@@ -496,7 +533,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           width: double.infinity,
           height: 40,
           child: ElevatedButton(
-            onPressed: _handlePunchIn,
+            onPressed: () => _handlePunchAction(isPunchedIn),
             style: ElevatedButton.styleFrom(
               backgroundColor: buttonColor,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
@@ -544,24 +581,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Column(
         children: [
-          GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 2.2,
-            ),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return _buildWorkHrCard(
-                item['title'] as String,
-                item['value'] as String,
-                item['color'] as Color,
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: items.map((item) {
+              return SizedBox(
+                width: (MediaQuery.of(context).size.width - 48) / 2, // 2 items per row with padding
+                height: 90,
+                child: _buildWorkHrCard(
+                  item['title'] as String,
+                  item['value'] as String,
+                  item['color'] as Color,
+                ),
               );
-            },
+            }).toList(),
           ),
         ],
       ),
@@ -616,18 +649,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Column(
         children: [
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 2.5,
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
             children: [
-              _buildPercentageItem('Day Percentage', dayPct, AppColors.chartColors[0]),
-              _buildPercentageItem('Month Percentage', monthPct, AppColors.chartColors[1]),
-              _buildPercentageItem('Week Percentage', weekPct, AppColors.chartColors[2]),
-              _buildPercentageItem('OT Percentage', otPct, AppColors.chartColors[3]),
+              _buildPercentageItemWrapper(context, 'Day Percentage', dayPct, AppColors.chartColors[0]),
+              _buildPercentageItemWrapper(context, 'Month Percentage', monthPct, AppColors.chartColors[1]),
+              _buildPercentageItemWrapper(context, 'Week Percentage', weekPct, AppColors.chartColors[2]),
+              _buildPercentageItemWrapper(context, 'OT Percentage', otPct, AppColors.chartColors[3]),
             ],
           ),
           const SizedBox(height: 16),
@@ -657,20 +686,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildPercentageItem(String title, double value, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+  Widget _buildPercentageItemWrapper(BuildContext context, String title, double value, Color color) {
+    return SizedBox(
+      width: (MediaQuery.of(context).size.width - 48) / 2,
+      height: 90,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(width: 8),
-            Expanded(child: Text(title, style: const TextStyle(fontSize: 11, color: Color(0xFF374151), fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)),
+            Row(
+              children: [
+                Container(
+                  width: 10, 
+                  height: 10, 
+                  decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))
+                ),
+              ],
+            ),
+            const Spacer(),
+            Text('${value.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(title, style: const TextStyle(fontSize: 10, color: Colors.grey)),
           ],
         ),
-        const SizedBox(height: 4),
-        Text('${value.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-      ],
+      ),
     );
   }
 
@@ -717,10 +761,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 );
               }),
             ),
-            trailing: team.length > 5 ? TextButton(
+            trailing: TextButton(
               onPressed: () => Navigator.pushNamed(context, '/teams'),
               child: const Text('View All', style: TextStyle(fontSize: 12)),
-            ) : null,
+            ),
           ),
         if (approvals.isNotEmpty)
           _buildCard(

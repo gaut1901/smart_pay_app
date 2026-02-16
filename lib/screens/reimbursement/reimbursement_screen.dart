@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../core/constants.dart';
 import '../../data/services/reimbursement_service.dart';
+import '../../data/services/auth_service.dart';
 
 class ReimbursementScreen extends StatefulWidget {
   const ReimbursementScreen({super.key});
@@ -38,6 +39,12 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    // Check if we have member info from the TeamDetailScreen
+    if (AuthService.memberEmpCode != "0" && AuthService.memberEmpCode != "") {
+       // We can perhaps show the name in the title
+    }
+    
     _loadData();
   }
 
@@ -163,6 +170,8 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
         empName: _empName ?? '',
         edName: _selectedEDName!,
         file: _selectedFile,
+        actions: _isEditing ? "Modify" : "Add",
+        editId: _editId ?? "",
       );
       
       if (mounted) {
@@ -175,6 +184,8 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
           _selectedEDName = null;
           _maxAllowed = 0;
           _unlimited = "false";
+          _isEditing = false;
+          _editId = null;
         });
         _fetchHistory();
         _tabController.animateTo(1);
@@ -192,6 +203,87 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
     }
   }
 
+  bool _isEditing = false;
+  String? _editId;
+
+  Future<void> _editRequest(ReimbursementRequest request) async {
+    setState(() => _isLoadingLookups = true);
+    try {
+      final detail = await _reimbursementService.getReimbursementDetail(request.id, "Modify");
+      setState(() {
+        _isEditing = true;
+        _editId = request.id;
+        
+        if (detail['SDate'] != null && detail['SDate'] != "") {
+           try {
+             _selectedDate = DateFormat('dd-MM-yyyy').parse(detail['SDate']);
+           } catch (_) {}
+        }
+        
+        _selectedEDName = detail['EDName'];
+        _amountController.text = detail['Amount']?.toString() ?? "";
+        _maxAllowed = (detail['MaxAllowed'] is num) ? (detail['MaxAllowed'] as num).toDouble() : 0.0;
+        _unlimited = detail['Unlimited']?.toString() ?? "false";
+        
+        _tabController.animateTo(0);
+        _isLoadingLookups = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingLookups = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load request for editing: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteRequest(ReimbursementRequest request) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Delete'),
+        content: const Text('Are you sure you want to delete this reimbursement request?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            child: const Text('Delete', style: TextStyle(color: Colors.red))
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      await _reimbursementService.submitReimbursementRequest(
+        sDate: request.sDate,
+        amount: request.amount,
+        maxAllowed: 0,
+        unlimited: "false",
+        empName: "",
+        edName: request.edName,
+        actions: "Delete",
+        editId: request.id,
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reimbursement deleted successfully')));
+        _fetchHistory();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -204,7 +296,12 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Reimbursement', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: Text(
+          AuthService.memberName.isNotEmpty 
+            ? 'Reimbursement - ${AuthService.memberName}' 
+            : 'Reimbursement', 
+          style: const TextStyle(color: Colors.white, fontSize: 18)
+        ),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(
@@ -307,9 +404,32 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
                         ),
                         child: _isSubmitting 
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('Submit Request', style: TextStyle(color: Colors.white, fontSize: 16)),
+                          : Text(_isEditing ? 'Update Request' : 'Submit Request', style: const TextStyle(color: Colors.white, fontSize: 16)),
                       ),
                     ),
+                    if (_isEditing) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              _isEditing = false;
+                              _editId = null;
+                              _amountController.clear();
+                              _selectedFile = null;
+                              _selectedEDName = null;
+                            });
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.grey),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Cancel Edit', style: TextStyle(color: Colors.grey)),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -361,10 +481,30 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(item.sDate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                  child: Text(status, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    if (status != 'Approved' && status != 'Rejected') ...[
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
+                        onPressed: () => _editRequest(item),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                      const SizedBox(width: 12),
+                      IconButton(
+                        icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                        onPressed: () => _deleteRequest(item),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+                      child: Text(status, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
               ],
             ),

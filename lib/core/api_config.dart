@@ -24,5 +24,8 @@ class ApiConfig {
   static const String wagesSubmit = "api/empdet/submitdet";
   static const String wagesAddNewSalary = "api/empdet/AddNewSalary";
   static const String punchIn = "api/home/setcheckin";
+  static const String punchOut = "api/home/setcheckout";
   static const String requestRights = "api/attn/GetESSReqRights";
+  static const String changePassDisplay = "api/empchangepass/display";
+  static const String changePassSubmit = "api/empchangepass/submit";
 }
