@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../core/widgets/date_picker_field.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/attendance_model.dart';
 import '../../data/services/attendance_service.dart';
@@ -214,65 +215,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildDateFilterRow() {
-    return Container(
-      color: Colors.white,
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: () => _selectDate(context, true),
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'From Date',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  suffixIcon: Icon(Icons.calendar_today, size: 18),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                child: Text(
-                  DateFormat('dd-MM-yyyy').format(_fromDate),
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: InkWell(
-              onTap: () => _selectDate(context, false),
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'To Date',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  suffixIcon: Icon(Icons.calendar_today, size: 18),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                child: Text(
-                  DateFormat('dd-MM-yyyy').format(_toDate),
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFE53935), // Red color
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: IconButton(
-              icon: _isLoading 
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Icon(Icons.search, color: Colors.white),
-              onPressed: _isLoading ? null : _loadAttendance,
-              tooltip: 'Filter',
-            ),
-          ),
-        ],
-      ),
+    return DateFilterRow(
+      fromDate: _fromDate,
+      toDate: _toDate,
+      onFromDateTap: () => _selectDate(context, true),
+      onToDateTap: () => _selectDate(context, false),
+      onSearch: _loadAttendance,
+      isLoading: _isLoading,
     );
   }
 

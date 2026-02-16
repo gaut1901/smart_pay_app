@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../data/services/approval_service.dart';
 import '../../core/constants.dart';
+import '../../core/widgets/date_picker_field.dart';
 import 'approval_detail_screen.dart';
 
 class ApprovalListScreen extends StatefulWidget {
@@ -418,60 +419,12 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: () => _selectDate(true),
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'From Date',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  suffixIcon: Icon(Icons.calendar_today, size: 18),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                child: Text(
-                  _fromDate != null ? DateFormat('dd-MM-yyyy').format(_fromDate!) : 'Select Date',
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: InkWell(
-              onTap: () => _selectDate(false),
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'To Date',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  suffixIcon: Icon(Icons.calendar_today, size: 18),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                child: Text(
-                  _toDate != null ? DateFormat('dd-MM-yyyy').format(_toDate!) : 'Select Date',
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFE53935), // Red color matches attached image
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.search, color: Colors.white),
-              onPressed: _loadCompletedData,
-              tooltip: 'Filter',
-            ),
-          ),
-        ],
+      child: DateFilterRow(
+        fromDate: _fromDate ?? DateTime.now(),
+        toDate: _toDate ?? DateTime.now(),
+        onFromDateTap: () => _selectDate(true),
+        onToDateTap: () => _selectDate(false),
+        onSearch: _loadCompletedData,
       ),
     );
   }

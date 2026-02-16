@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../core/ui_constants.dart';
+import '../../core/widgets/date_picker_field.dart';
 import '../../data/models/leave_model.dart';
 import '../../data/services/leave_service.dart';
 import 'package:intl/intl.dart';
@@ -1006,12 +1007,12 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
       children: [
         UIConstants.buildViewButton(onPressed: () => _handleAction(item, 'View')),
         if (canEdit) ...[
-          const SizedBox(width: 8),
+          const SizedBox(width: 1),
           UIConstants.buildEditButton(
             onPressed: () => _handleAction(item, editLabel),
             tooltip: editLabel,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 1),
           UIConstants.buildDeleteButton(
             onPressed: () => _handleAction(item, deleteLabel),
             tooltip: deleteLabel,
@@ -1387,11 +1388,16 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
       children: [
         Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
         const SizedBox(height: 4),
-        Text(value, style: TextStyle(
-          fontSize: 14, 
-          fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
-          color: isHighlight ? AppColors.primary : AppColors.textDark,
-        )),
+        Text(
+          value, 
+          style: TextStyle(
+            fontSize: 12, 
+            fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+            color: isHighlight ? AppColors.primary : AppColors.textDark,
+          ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
       ],
     );
 
@@ -1502,63 +1508,12 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   }
 
   Widget _buildHistoryDateFilterRow() {
-    return Container(
-      color: Colors.white,
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: () => _selectHistoryDate(true),
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'From Date',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  suffixIcon: Icon(Icons.calendar_today, size: 18),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                child: Text(
-                  DateFormat('dd-MM-yyyy').format(_historyFromDate),
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: InkWell(
-              onTap: () => _selectHistoryDate(false),
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'To Date',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  suffixIcon: Icon(Icons.calendar_today, size: 18),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                child: Text(
-                  DateFormat('dd-MM-yyyy').format(_historyToDate),
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFE53935), // Red color
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.search, color: Colors.white),
-              onPressed: _applyHistoryDateFilter,
-              tooltip: 'Filter',
-            ),
-          ),
-        ],
-      ),
+    return DateFilterRow(
+      fromDate: _historyFromDate,
+      toDate: _historyToDate,
+      onFromDateTap: () => _selectHistoryDate(true),
+      onToDateTap: () => _selectHistoryDate(false),
+      onSearch: _applyHistoryDateFilter,
     );
   }
 

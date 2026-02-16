@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants.dart';
 import '../../core/ui_constants.dart';
+import '../../core/widgets/date_picker_field.dart';
 import '../../data/services/shift_deviation_service.dart';
 
 class ShiftDeviationScreen extends StatefulWidget {
@@ -42,27 +43,74 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
   // Table & Search State
   final TextEditingController _searchController = TextEditingController();
   int _rowsPerPage = 10;
+  int _currentPage = 0;
+  List<ShiftDeviationRequest> _dateFilteredHistory = [];
   List<ShiftDeviationRequest> _filteredHistory = [];
+
+  // Date Filters
+  DateTime _historyFromDate = DateTime.now();
+  DateTime _historyToDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    final now = DateTime.now();
+    _historyFromDate = DateTime(now.year, now.month, 1);
+    _historyToDate = now;
+
     _loadData();
     _searchController.addListener(_onSearchChanged);
   }
 
   void _onSearchChanged() {
     setState(() {
-      if (_searchController.text.isEmpty) {
-        _filteredHistory = _history;
+      String query = _searchController.text.toLowerCase();
+      if (query.isEmpty) {
+        _filteredHistory = List.from(_dateFilteredHistory);
       } else {
-        _filteredHistory = _history.where((request) => 
-          (request.devNo.toLowerCase().contains(_searchController.text.toLowerCase())) ||
-          (request.groupName.toLowerCase().contains(_searchController.text.toLowerCase())) ||
-          (request.shiftName.toLowerCase().contains(_searchController.text.toLowerCase()))
+        _filteredHistory = _dateFilteredHistory.where((request) => 
+          (request.devNo.toLowerCase().contains(query)) ||
+          (request.groupName.toLowerCase().contains(query)) ||
+          (request.shiftName.toLowerCase().contains(query))
         ).toList();
       }
+      _currentPage = 0;
+    });
+  }
+
+  Future<void> _selectHistoryDate(bool isFrom) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: isFrom ? _historyFromDate : _historyToDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isFrom) {
+          _historyFromDate = picked;
+        } else {
+          _historyToDate = picked;
+        }
+      });
+    }
+  }
+
+  void _applyHistoryDateFilter() {
+    setState(() {
+      _dateFilteredHistory = _history.where((item) {
+        try {
+          DateTime itemDate = DateFormat('dd-MM-yyyy').parse(item.sDate);
+          DateTime start = DateTime(_historyFromDate.year, _historyFromDate.month, _historyFromDate.day);
+          DateTime end = DateTime(_historyToDate.year, _historyToDate.month, _historyToDate.day).add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
+          return itemDate.isAfter(start.subtract(const Duration(seconds: 1))) && itemDate.isBefore(end.add(const Duration(seconds: 1)));
+        } catch (e) {
+          return false;
+        }
+      }).toList();
+      _onSearchChanged(); // Re-apply text search
     });
   }
 
@@ -97,9 +145,9 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
       final history = await _shiftDevService.getShiftDeviationHistory();
       setState(() {
         _history = history;
-        _filteredHistory = history;
+        _dateFilteredHistory = history;
+        _applyHistoryDateFilter(); // Apply default date filter
         _isLoadingHistory = false;
-        _onSearchChanged();
       });
     } catch (e) {
       setState(() {
@@ -466,60 +514,33 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           children: [
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text('Shift Deviation History', 
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-              ),
-            ),
+            const SizedBox(height: 16),
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white, 
-                borderRadius: BorderRadius.circular(8), 
+                borderRadius: BorderRadius.circular(12), 
                 border: Border.all(color: Colors.grey.shade200),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
                 ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text('Shift Deviation History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
                   _buildTableActionsRow(),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   if (_filteredHistory.isEmpty)
-                    const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No history found')))
+                    const Center(child: Padding(padding: EdgeInsets.all(40), child: Text('No history found')))
                   else
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        headingRowColor: WidgetStateProperty.all(UIConstants.tableHeaderBg),
-                        columns: [
-                          DataColumn(label: Text('DEV NO', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('REQ DATE', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('FROM DATE', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('TO DATE', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('GROUP', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('SHIFT', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('STATUS', style: UIConstants.tableHeaderStyle)),
-                          DataColumn(label: Text('ACTIONS', style: UIConstants.tableHeaderStyle)),
-                        ],
-                        rows: _filteredHistory.map((item) {
-                          return DataRow(cells: [
-                            DataCell(Text(item.devNo)),
-                            DataCell(Text(item.sDate)),
-                            DataCell(Text(item.startDate)),
-                            DataCell(Text(item.endDate)),
-                            DataCell(Text(item.groupName)),
-                            DataCell(Text(item.shiftName)),
-                            DataCell(Text(item.app)),
-                            DataCell(_buildActions(item)),
-                          ]);
-                        }).toList(),
-                      ),
-                    ),
+                    _buildHistoryCards(),
                   const Divider(),
                   _buildPaginationFooter(_filteredHistory.length),
                 ],
@@ -528,6 +549,72 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
             const SizedBox(height: 40),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryCards() {
+    int displayCount = _filteredHistory.length > _rowsPerPage ? _rowsPerPage : _filteredHistory.length;
+    List<ShiftDeviationRequest> displayedItems = _filteredHistory.take(displayCount).toList();
+
+    return Column(
+      children: displayedItems.map((item) => _buildHistoryCard(item)).toList(),
+    );
+  }
+
+  Widget _buildHistoryCard(ShiftDeviationRequest item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildCardItem('DEV.NO', item.devNo, flex: 1),
+              _buildCardItem('GROUP', item.groupName, flex: 2),
+              _buildActions(item),
+            ],
+          ),
+          const Divider(height: 16),
+          Row(
+            children: [
+              _buildCardItem('FROM DATE', item.startDate, flex: 1),
+              _buildCardItem('TO DATE', item.endDate, flex: 1),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _buildCardItem('SHIFT NAME', item.shiftName, flex: 1),
+              _buildCardItem('STATUS', item.app, flex: 1, isHighlight: true),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardItem(String label, String value, {int flex = 1, bool isHighlight = false}) {
+    return Expanded(
+      flex: flex,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(
+            fontSize: 13, 
+            fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+            color: isHighlight ? AppColors.primary : const Color(0xFF1E1E1E),
+          )),
+        ],
       ),
     );
   }
@@ -545,40 +632,63 @@ class _ShiftDeviationScreenState extends State<ShiftDeviationScreen> with Single
 
   Widget _buildTableActionsRow() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const Text('Row Per Page', style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.bold)),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
-              child: Row(
-                children: [
-                  Text('$_rowsPerPage', style: const TextStyle(fontSize: 12)),
-                  const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.blue),
-                ],
+        _buildHistoryDateFilterRow(),
+        const SizedBox(height: 16),
+        _buildHistorySearchAndRowsRow(),
+      ],
+    );
+  }
+
+  Widget _buildHistoryDateFilterRow() {
+    return DateFilterRow(
+      fromDate: _historyFromDate,
+      toDate: _historyToDate,
+      onFromDateTap: () => _selectHistoryDate(true),
+      onToDateTap: () => _selectHistoryDate(false),
+      onSearch: _applyHistoryDateFilter,
+    );
+  }
+
+  Widget _buildHistorySearchAndRowsRow() {
+    return Container(
+      color: Colors.white,
+      child: Row(
+        children: [
+          // Row per page
+          const Text('Rows: '),
+          DropdownButton<int>(
+            value: _rowsPerPage,
+            items: [10, 25, 50, 100].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
+            onChanged: (val) {
+                if (val != null) setState(() => _rowsPerPage = val);
+            },
+            underline: Container(), // Remove underline
+          ),
+          const SizedBox(width: 16),
+          // Search Box
+          Expanded(
+            child: SizedBox(
+              height: 40,
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                onChanged: (_) => _onSearchChanged(),
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Container(
-          height: 40,
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
-          child: TextField(
-            controller: _searchController,
-            decoration: const InputDecoration(
-              hintText: 'Search by Dev No, Group or Shift',
-              hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border: InputBorder.none,
-              suffixIcon: Icon(Icons.search, size: 20, color: Colors.grey),
-            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

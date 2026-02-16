@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../core/constants.dart';
+import '../../core/ui_constants.dart';
+import '../../core/widgets/date_picker_field.dart';
 import '../../data/services/reimbursement_service.dart';
 import '../../data/services/auth_service.dart';
 
@@ -35,10 +37,25 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
   double _maxAllowed = 0;
   bool _isSubmitting = false;
 
+  // Table & Search State
+  final TextEditingController _searchController = TextEditingController();
+  int _rowsPerPage = 10;
+  int _currentPage = 0;
+  List<ReimbursementRequest> _dateFilteredHistory = [];
+  List<ReimbursementRequest> _filteredHistory = [];
+
+  // Date Filters
+  DateTime _historyFromDate = DateTime.now();
+  DateTime _historyToDate = DateTime.now();
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    final now = DateTime.now();
+    _historyFromDate = DateTime(now.year, now.month, 1);
+    _historyToDate = now;
     
     // Check if we have member info from the TeamDetailScreen
     if (AuthService.memberEmpCode != "0" && AuthService.memberEmpCode != "") {
@@ -46,6 +63,56 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
     }
     
     _loadData();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      String query = _searchController.text.toLowerCase();
+      if (query.isEmpty) {
+        _filteredHistory = List.from(_dateFilteredHistory);
+      } else {
+        _filteredHistory = _dateFilteredHistory.where((request) => 
+          (request.ticketNo.toLowerCase().contains(query)) ||
+          (request.edName.toLowerCase().contains(query))
+        ).toList();
+      }
+      _currentPage = 0;
+    });
+  }
+
+  Future<void> _selectHistoryDate(bool isFrom) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: isFrom ? _historyFromDate : _historyToDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isFrom) {
+          _historyFromDate = picked;
+        } else {
+          _historyToDate = picked;
+        }
+      });
+    }
+  }
+
+  void _applyHistoryDateFilter() {
+    setState(() {
+      _dateFilteredHistory = _history.where((item) {
+        try {
+          DateTime itemDate = DateFormat('dd-MM-yyyy').parse(item.sDate);
+          DateTime start = DateTime(_historyFromDate.year, _historyFromDate.month, _historyFromDate.day);
+          DateTime end = DateTime(_historyToDate.year, _historyToDate.month, _historyToDate.day).add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
+          return itemDate.isAfter(start.subtract(const Duration(seconds: 1))) && itemDate.isBefore(end.add(const Duration(seconds: 1)));
+        } catch (e) {
+          return false;
+        }
+      }).toList();
+      _onSearchChanged(); // Re-apply text search
+    });
   }
 
   Future<void> _loadData() async {
@@ -64,6 +131,8 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
       final history = await _reimbursementService.getReimbursementHistory();
       setState(() {
         _history = history;
+        _dateFilteredHistory = history;
+        _applyHistoryDateFilter(); // Apply default date filter
         _isLoadingHistory = false;
       });
     } catch (e) {
@@ -288,6 +357,7 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
   void dispose() {
     _tabController.dispose();
     _amountController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -450,88 +520,232 @@ class _ReimbursementScreenState extends State<ReimbursementScreen> with SingleTi
   Widget _buildHistoryTab() {
     if (_isLoadingHistory) return const Center(child: CircularProgressIndicator());
     if (_historyError != null) return Center(child: Text(_historyError!, style: const TextStyle(color: Colors.red)));
-    if (_history.isEmpty) return const Center(child: Text('No history found'));
 
     return RefreshIndicator(
       onRefresh: () async => _fetchHistory(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _history.length,
-        itemBuilder: (context, index) {
-          final item = _history[index];
-          return _buildHistoryItem(item);
-        },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white, 
+                borderRadius: BorderRadius.circular(12), 
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Reimbursement History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  _buildTableActionsRow(),
+                  const SizedBox(height: 16),
+                  if (_filteredHistory.isEmpty)
+                    const Center(child: Padding(padding: EdgeInsets.all(40), child: Text('No history found')))
+                  else
+                    _buildHistoryCards(),
+                  const Divider(),
+                  _buildPaginationFooter(_filteredHistory.length),
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryCards() {
+    int displayCount = _filteredHistory.length > _rowsPerPage ? _rowsPerPage : _filteredHistory.length;
+    List<ReimbursementRequest> displayedItems = _filteredHistory.take(displayCount).toList();
+
+    return Column(
+      children: displayedItems.map((item) => _buildHistoryItem(item)).toList(),
+    );
+  }
+
+  Widget _buildTableActionsRow() {
+    return Column(
+      children: [
+        _buildHistoryDateFilterRow(),
+        const SizedBox(height: 16),
+        _buildHistorySearchAndRowsRow(),
+      ],
+    );
+  }
+
+  Widget _buildHistoryDateFilterRow() {
+    return DateFilterRow(
+      fromDate: _historyFromDate,
+      toDate: _historyToDate,
+      onFromDateTap: () => _selectHistoryDate(true),
+      onToDateTap: () => _selectHistoryDate(false),
+      onSearch: _applyHistoryDateFilter,
+    );
+  }
+
+  Widget _buildHistorySearchAndRowsRow() {
+    return Container(
+      color: Colors.white,
+      child: Row(
+        children: [
+          // Row per page
+          const Text('Rows: '),
+          DropdownButton<int>(
+            value: _rowsPerPage,
+            items: [10, 25, 50, 100].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
+            onChanged: (val) {
+                if (val != null) setState(() => _rowsPerPage = val);
+            },
+            underline: Container(), // Remove underline
+          ),
+          const SizedBox(width: 16),
+          // Search Box
+          Expanded(
+            child: SizedBox(
+              height: 40,
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                onChanged: (_) => _onSearchChanged(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaginationFooter(int count) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Showing 1 to $count of $count entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          const Row(
+            children: [
+              Icon(Icons.chevron_left, color: Colors.grey),
+              SizedBox(width: 16),
+              Icon(Icons.chevron_right, color: Colors.grey),
+            ],
+          )
+        ],
       ),
     );
   }
 
   Widget _buildHistoryItem(ReimbursementRequest item) {
-    final status = item.app;
-    final Color statusColor = status == 'Approved' ? Colors.green : (status == 'Rejected' ? Colors.red : Colors.orange);
-
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(item.sDate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Row(
-                  children: [
-                    if (status != 'Approved' && status != 'Rejected') ...[
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
-                        onPressed: () => _editRequest(item),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                      const SizedBox(width: 12),
-                      IconButton(
-                        icon: const Icon(Icons.delete, size: 20, color: Colors.red),
-                        onPressed: () => _deleteRequest(item),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                      const SizedBox(width: 12),
-                    ],
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                      child: Text(status, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(child: Text(item.edName, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w500))),
-                Text('₹${item.amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Ticket No: ${item.ticketNo}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-                if (item.payDate.isNotEmpty && item.payDate != "-")
-                  Text('Paid: ${item.payDate}', style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            if (item.appBy.isNotEmpty && item.appBy != "-") ...[
-              const SizedBox(height: 4),
-              Text('Approved By: ${item.appBy}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-            ],
-          ],
-        ),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildCardItem('TKT.NO', item.ticketNo, flex: 1),
+              _buildCardItem('TYPE', item.edName, flex: 2),
+              _buildActions(item),
+            ],
+          ),
+          const Divider(height: 16),
+          Row(
+            children: [
+              _buildCardItem('DATE', item.sDate, flex: 1),
+              _buildCardItem('AMOUNT', '₹${item.amount.toStringAsFixed(2)}', flex: 1, isHighlight: true),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _buildCardItem('STATUS', item.app, flex: 1, isHighlight: true),
+              if (item.payDate.isNotEmpty && item.payDate != "-")
+                _buildCardItem('PAID ON', item.payDate, flex: 1)
+              else
+                Expanded(flex: 1, child: SizedBox()),
+            ],
+          ),
+          if (item.appBy.isNotEmpty && item.appBy != "-") ...[
+            const SizedBox(height: 8),
+            _buildCardItem('APP. BY', item.appBy, flex: 1),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardItem(String label, String value, {int flex = 1, bool isHighlight = false}) {
+    return Expanded(
+      flex: flex,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(
+            fontSize: 13, 
+            fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+            color: isHighlight ? AppColors.primary : const Color(0xFF1E1E1E),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActions(ReimbursementRequest item) {
+    bool canEdit = (item.app != 'Approved' && item.app != 'Rejected');
+    
+    if (!canEdit) {
+      return const SizedBox.shrink(); // Return empty widget if no actions available
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.edit, size: 18, color: Colors.blue),
+          onPressed: () => _editRequest(item),
+          tooltip: 'Edit',
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+          onPressed: () => _deleteRequest(item),
+          tooltip: 'Delete',
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+        ),
+      ],
     );
   }
 
