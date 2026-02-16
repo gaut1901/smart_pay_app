@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../data/services/approval_service.dart';
 import 'approval_list_screen.dart';
+import 'shift_deviation_approval_screen.dart';
 
 class ApprovalScreen extends StatefulWidget {
   const ApprovalScreen({super.key});
@@ -76,41 +77,13 @@ class _ApprovalScreenState extends State<ApprovalScreen> {
   Widget _buildGridCards() {
     if (_summary == null) return const SizedBox.shrink();
 
-    final List<Map<String, dynamic>> items = [
-      {'title': 'Profile', 'type': 'Profile', 'count': 0, 'icon': Icons.person, 'color': const Color(0xFF00C853)},
-      {'title': 'Wages Detail', 'type': 'Wages', 'count': 0, 'icon': Icons.wallet, 'color': const Color(0xFFFF4081)},
-      {'title': 'Apply Leave', 'type': 'Leave', 'count': _summary!.leave, 'icon': Icons.calendar_today, 'color': const Color(0xFF2196F3)},
-      {'title': 'Apply Leave Compensation', 'type': 'LeaveComp', 'count': 0, 'icon': Icons.history, 'color': const Color(0xFFFF4081)},
-      {'title': 'Permission Apply', 'type': 'Permission', 'count': _summary!.permission, 'icon': Icons.access_time, 'color': const Color(0xFFD50000)},
-      {'title': 'Advance', 'type': 'Advance', 'count': _summary!.advance, 'icon': Icons.money, 'color': const Color(0xFF455A64)},
-    ];
-
-    // Note: Items provided in user request/image seem slightly different (Profile, Wages Detail, Apply Leave, Apply Leave Compensation, Permission Apply, Advance).
-    // The previous implementation had: Apply Leave, Apply Leave Compensation, Advance, Advance Adjustment, Shift Deviation, Permission.
-    // I will try to match the image description if possible, or at least the style.
-    // However, I should probably stick to the functionality that exists (Leave, LeaveComp, Advance, AdvAdj, ShiftDev, Permission) but style it as requested.
-    // Wait, the user attached an image and said "set card format design like attached image". 
-    // And "Profile", "Wages Detail" were visible in the crop I saw in my "mind's eye" (simulated by the user prompt description if I had one).
-    // ACTUALLY, I don't have the image but the text "Profile", "Wages Detail" etc might be what they want IF those were in the image.
-    // But since I don't see the image, I should probably stick to the *functional* items but style them.
-    // BUT the prompt says: "set card format design like attached image".
-    // I will use the items I have but with a Grid layout.
-    
-    // User Update: The image shown in the prompt for Step 0 has 2 columns.
-    // Items visible in the snippet provided in Step 0 request (Wait, I can see the image snippet in user request? NO, the user request text is: "inthis page approval . set card format design like attached image. if click that card that tables display like new page with back button.")
-    // Ah, wait. I am an AI. I cannot see the image.
-    // But I will stick to the existing functional items but formatted in a Grid.
-    
-    // Re-reading Step 0: There is an image displayed in the 'user_request' block in the UI (for the human), but I only get text.
-    // However, looking at the previous file content, I have all the types.
-    
     final List<Map<String, dynamic>> gridItems = [
-      {'title': 'Grant Leave Approval', 'type': 'Leave', 'count': _summary!.leave, 'icon': Icons.calendar_today, 'color': const Color(0xFF2196F3)}, // Blue
-      {'title': 'Leave Compensation', 'type': 'LeaveComp', 'count': 0, 'icon': Icons.history, 'color': const Color(0xFFFF4081)}, // Pink
-      {'title': 'Permission', 'type': 'Permission', 'count': _summary!.permission, 'icon': Icons.access_time, 'color': const Color(0xFFD50000)}, // Red
-      {'title': 'Advance', 'type': 'Advance', 'count': _summary!.advance, 'icon': Icons.money, 'color': const Color(0xFF455A64)}, // Grey/Blue
-      {'title': 'Advance Adjustment Approval', 'type': 'AdvAdj', 'count': _summary!.advanceAdjustment, 'icon': Icons.calculate, 'color': const Color(0xFF3B7080)},
-      {'title': 'Approval Shift Deviation', 'type': 'ShiftDev', 'count': _summary!.shiftDeviation, 'icon': Icons.schedule, 'color': const Color(0xFFE70D0D)},
+      {'title': 'Apply Leave', 'type': 'Leave', 'count': _summary!.leave, 'icon': Icons.calendar_today, 'color': const Color(0xFF00C853)},
+      {'title': 'Apply Leave Compensation', 'type': 'LeaveComp', 'count': 0, 'icon': Icons.history, 'color': const Color(0xFF2196F3)},
+      {'title': 'Advance', 'type': 'Advance', 'count': _summary!.advance, 'icon': Icons.money, 'color': const Color(0xFFFF4081)},
+      {'title': 'Advance Adjustment', 'type': 'AdvAdj', 'count': _summary!.advanceAdjustment, 'icon': Icons.calculate, 'color': const Color(0xFF3B7080)},
+      {'title': 'Shift Deviation', 'type': 'ShiftDev', 'count': _summary!.shiftDeviation, 'icon': Icons.schedule, 'color': const Color(0xFFD50000)},
+      {'title': 'Permission', 'type': 'Permission', 'count': _summary!.permission, 'icon': Icons.access_time, 'color': const Color(0xFFD50000)},
     ];
 
     return GridView.builder(
@@ -133,15 +106,27 @@ class _ApprovalScreenState extends State<ApprovalScreen> {
   Widget _buildCard(Map<String, dynamic> item) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ApprovalListScreen(
-              type: item['type'],
-              title: item['title'],
+        if (item['type'] == 'ShiftDev') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ShiftDeviationApprovalScreen(
+                type: item['type'],
+                title: item['title'],
+              ),
             ),
-          ),
-        ).then((_) => _loadSummary());
+          ).then((_) => _loadSummary());
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ApprovalListScreen(
+                type: item['type'],
+                title: item['title'],
+              ),
+            ),
+          ).then((_) => _loadSummary());
+        }
       },
       child: Container(
         decoration: BoxDecoration(

@@ -102,6 +102,7 @@ class ApprovalService {
       case 'Leave': endpoint = 'api/attn/lgapp/'; break;
       case 'Permission': endpoint = 'api/attn/PermissionApp/'; break;
       case 'Advance': endpoint = 'api/attn/AdvApp/'; break;
+      case 'AdvAdj':
       case 'AdvanceAdjustment': endpoint = 'api/attn/AARApp/'; break;
       case 'Reimbursement': endpoint = 'api/reimapp/getlist/'; break;
       case 'AssetRequest': endpoint = 'api/assetapp/app/'; break;
@@ -180,6 +181,7 @@ class ApprovalService {
       case 'Leave': endpoint = 'api/attn/leavegapproval/'; break;
       case 'Permission': endpoint = 'api/attn/PermissionApproval/'; break;
       case 'Advance': endpoint = 'api/attn/AdvApproval/'; break;
+      case 'AdvAdj':
       case 'AdvanceAdjustment': endpoint = 'api/attn/AARApproval/'; break;
       case 'Reimbursement': endpoint = 'api/reimapp/reimapproval/'; break;
       case 'AssetRequest': endpoint = 'api/assetapp/submit/'; break;
@@ -231,6 +233,7 @@ class ApprovalService {
       case 'Leave': endpoint = 'api/attn/DisplayLeaveGApp/'; break;
       case 'Permission': endpoint = 'api/attn/DisplayPerApp/'; break;
       case 'Advance': endpoint = 'api/attn/DisplayAdvApp/'; break;
+      case 'AdvAdj':
       case 'AdvanceAdjustment': endpoint = 'api/attn/DisplayAARApp/'; break;
       case 'Reimbursement': endpoint = 'api/reimapp/displayapp/'; break;
       case 'AssetRequest': endpoint = 'api/assetapp/displayapp/'; break;
@@ -286,10 +289,10 @@ class ApprovalService {
 
   // Advance Adjustment
   Future<Map<String, dynamic>> getAdvanceAdjustmentApprovals() async {
-    return _fetchData('api/attn/AARApp/');
+    return _fetchData('api/aar/empaarapp/');
   }
   Future<Map<String, dynamic>> getCompletedAdvanceAdjustmentApprovals({String? fDate, String? tDate}) async {
-    return _fetchData('api/attn/aarappcompleted/', fDate: fDate, tDate: tDate);
+    return _fetchData('api/aar/empaarappcompleted/', fDate: fDate, tDate: tDate);
   }
 
   // Shift Deviation

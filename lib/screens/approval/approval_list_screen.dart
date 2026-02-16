@@ -153,9 +153,34 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
 
       final list = data['dtLapp'] ?? data['dtList'] ?? [];
       
+      // Client-side filtering
+      final filteredList = list.where((item) {
+        if (_fromDate == null || _toDate == null) return true;
+        
+        final sDateStr = item['SDate'] ?? item['sdate'] ?? item['RequestDate'] ?? item['date'];
+        if (sDateStr == null) return true; // Default keep if no date found, or filter out? Keep for safety.
+
+        try {
+           final parts = sDateStr.toString().split('-');
+           if (parts.length == 3) {
+             final day = int.parse(parts[0]);
+             final month = int.parse(parts[1]);
+             final year = int.parse(parts[2]);
+             final itemDate = DateTime(year, month, day);
+
+             // Inclusive range check
+             final from = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day);
+             final to = DateTime(_toDate!.year, _toDate!.month, _toDate!.day).add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
+
+             return itemDate.isAfter(from.subtract(const Duration(days: 1))) && itemDate.isBefore(to.add(const Duration(days: 1)));
+           }
+        } catch (_) {}
+        return true;
+      }).toList();
+
       if (mounted) {
         setState(() {
-          _completedList = list;
+          _completedList = filteredList; // Use filtered list
           _filterCompletedList();
           _isLoadingCompleted = false;
         });
@@ -223,7 +248,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
 
   Widget _buildPendingView() {
     if (_isLoadingPending) return const Center(child: CircularProgressIndicator());
-    if (_pendingError != null) return Center(child: Text('Error: $_pendingError'));
+    if (_pendingError != null) return _buildError(_pendingError!, _loadPendingData);
 
     final startIndex = _pendingCurrentPage * _pendingRowsPerPage;
     final endIndex = (startIndex + _pendingRowsPerPage < _filteredPendingList.length) 
@@ -270,7 +295,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
 
   Widget _buildCompletedView() {
     if (_isLoadingCompleted) return const Center(child: CircularProgressIndicator());
-    if (_completedError != null) return Center(child: Text('Error: $_completedError'));
+    if (_completedError != null) return _buildError(_completedError!, _loadCompletedData);
 
     final startIndex = _completedCurrentPage * _completedRowsPerPage;
     final endIndex = (startIndex + _completedRowsPerPage < _filteredCompletedList.length)
@@ -470,116 +495,298 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
   }
 
   Widget _buildNoData() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.inbox_outlined, size: 48, color: Colors.grey),
-          SizedBox(height: 16),
-          Text('No Data Found', style: TextStyle(color: Colors.grey, fontSize: 16)),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade400),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'No Data Found',
+            style: TextStyle(
+              color: Colors.grey.shade800,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'There are no records to display at the moment.',
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPendingCard(dynamic item) {
-    // Fields: TKT.NO, date, Employee name, from date, to date, status, reason, action edit and delete icon.
-    // Mapping from typical API response (e.g. key names might vary, using safe access)
-    // Common keys: ticketno, TicketNo, sdate, SDate, empname, EmpName, fdate, FDate, tdate, TDate, status, Status, Remarks, remarks
-    
-    final ticketNo = item['ticketno'] ?? item['TicketNo'] ?? '-';
-    // 'date' in prompt usually refers to Request Date, often sdate or just 'Date'
-    final date = item['sdate'] ?? item['SDate'] ?? '-'; 
-    final empName = item['empname'] ?? item['EmpName'] ?? '-';
-    final fromDate = item['fdate'] ?? item['FDate'] ?? '-';
-    final toDate = item['tdate'] ?? item['TDate'] ?? '-';
-    final status = item['status'] ?? item['Status'] ?? '-';
-    final reason = item['Remarks'] ?? item['remarks'] ?? '-';
-    final empCode = item['empcode'] ?? item['EmpCode'] ?? '-'; // Added empcode for consistancy
-
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  Widget _buildError(String error, VoidCallback onRetry) {
+    return Center(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(32),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-             // Optimized Header: TKT.NO | EmpCode | Date
-            Row(
-              children: [
-                Expanded(child: _headerItem('TKT.NO', ticketNo)),
-                Expanded(child: _headerItem('EmpCode', empCode)),
-                Expanded(child: _headerItem('Date', date)),
-              ],
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.error_outline, size: 64, color: Colors.red),
             ),
-            const Divider(height: 16),
-            // Body rows
-            _rowItem('Employee Name', empName, boldValue: true),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Expanded(child: _rowItem('From Date', fromDate)),
-                Expanded(child: _rowItem('To Date', toDate)),
-              ],
+            const SizedBox(height: 20),
+            const Text(
+              'Oops! Something went wrong',
+              style: TextStyle(
+                color: Colors.black87,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            const SizedBox(height: 4),
-            _rowItem('Status', status, color: Colors.blue),
-            const SizedBox(height: 4),
-            _rowItem('Reason', reason),
-            
-            const Divider(height: 16),
-            // Actions
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.blue),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ApprovalDetailScreen(
-                          type: widget.type,
-                          id: (item['id'] ?? item['Id'] ?? '').toString(),
-                          title: widget.title,
-                        ),
-                      ),
-                    ).then((_) {
-                      // Refresh pending list on return
-                      _loadPendingData();
-                    });
-                  },
-                  tooltip: 'Edit',
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                ),
-                const SizedBox(width: 20),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () {
-                    // TODO: Implement Delete
-                  },
-                  tooltip: 'Delete',
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                ),
-              ],
-            )
+            const SizedBox(height: 8),
+            Text(
+              error.replaceAll('Exception: ', ''),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCompletedCard(dynamic item) {
-    // Prompt: "if no,empcode,date possible to set in a single row."
-    
+  Widget _buildPendingCard(dynamic item) {
+    if (widget.type == 'AdvAdj') {
+      return _buildAdvAdjPendingCard(item);
+    }
+
     final ticketNo = item['ticketno'] ?? item['TicketNo'] ?? '-';
-    // final empCode = item['empcode'] ?? item['EmpCode'] ?? '-'; // Removed as per request
+    final date = item['sdate'] ?? item['SDate'] ?? '-';
+    final empName = item['empname'] ?? item['EmpName'] ?? '-';
+    final fromDate = item['fdate'] ?? item['FDate'] ?? '-';
+    final toDate = item['tdate'] ?? item['TDate'] ?? '-';
+    final status = item['status'] ?? item['Status'] ?? '-';
+    final reason = item['Remarks'] ?? item['remarks'] ?? '-';
+    final empCode = item['empcode'] ?? item['EmpCode'] ?? '-';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 40, 16), // Extra padding for edit icon
+                child: Row(
+                  children: [
+                    Expanded(child: _headerItem('TKT.NO', ticketNo)),
+                    Expanded(child: _headerItem('EmpCode', empCode)),
+                    Expanded(child: _headerItem('Date', date)),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _rowItem('Employee Name', empName, boldValue: true),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: _rowItem('From Date', fromDate)),
+                        Expanded(child: _rowItem('To Date', toDate)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _rowItem('Status', status, color: Colors.blue),
+                    const SizedBox(height: 8),
+                    _rowItem('Reason', reason),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: IconButton(
+              icon: const Icon(Icons.edit, color: Colors.orange),
+              onPressed: () => _openDetail(item),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdvAdjPendingCard(dynamic item) {
+    // Fields: TicketNo, EmpName, ReqDate, SalaryMonth, DedName, AdjAmount
+    final ticketNo = item['TicketNo'] ?? item['ticketno'] ?? '-';
+    final empName = item['EmpName'] ?? item['empname'] ?? '-';
+    final reqDate = item['ReqDate'] ?? item['date'] ?? item['SDate'] ?? '-';
+    final salaryMonth = item['SalaryMonth'] ?? '-';
+    final dedName = item['DedName'] ?? '-';
+    final adjAmount = item['AdjAmount'] ?? '-';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('TKT.NO', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(ticketNo.toString(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('REQ. DATE', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(reqDate, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          // Body
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('EMPLOYEE NAME', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(empName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('SALARY PERIOD', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          Text(salaryMonth, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('ADJ. AMOUNT', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          Text(adjAmount.toString(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.redAccent)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text('DEDUCTION', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(dedName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          // Footer Actions
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                 TextButton.icon(
+                  onPressed: () => _openDetail(item),
+                  icon: const Icon(Icons.visibility_outlined, size: 18),
+                  label: const Text('Review'),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openDetail(dynamic item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ApprovalDetailScreen(
+          type: widget.type,
+          id: (item['id'] ?? item['Id'] ?? '').toString(),
+          title: widget.title,
+        ),
+      ),
+    ).then((refresh) {
+      if (refresh == true) {
+        _loadPendingData();
+      }
+    });
+  }
+
+  Widget _buildCompletedCard(dynamic item) {
+    if (widget.type == 'AdvAdj') {
+      return _buildAdvAdjCompletedCard(item);
+    }
+
+    final ticketNo = item['ticketno'] ?? item['TicketNo'] ?? '-';
     final date = item['sdate'] ?? item['SDate'] ?? '-';
     
-    // Filter out internal keys or raw objects
     final excludedKeys = {
       'id', 'Id', 'ticketno', 'TicketNo', 'sdate', 'SDate', 
       'empcode', 'EmpCode', 'cancel', 'revise', 
@@ -604,8 +811,6 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
       String label = labelMap[key.toLowerCase()] ?? key;
       String value = e.value.toString();
 
-      // Simple date formatting check
-      // e.g. 2026-02-13T11:06:14.8
       if (value.contains('T') && value.length > 10 && value.contains('-') && value.contains(':')) {
         try {
           final dt = DateTime.parse(value);
@@ -618,50 +823,54 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
       return MapEntry(label, value);
     }).toList();
 
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8), // Tighter padding
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-             // Header: TicketNo, Date (2 cols now since empCode removed)
              Row(
+               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                children: [
-                 Expanded(child: _headerItem('TKT.NO', ticketNo)),
-                 Expanded(child: _headerItem('Date', date)),
-                 // Expanded(child: _headerItem('EmpCode', empCode)), // Removed
+                 _headerItem('TKT.NO', ticketNo),
+                 _headerItem('Date', date),
                ],
              ),
-             const Divider(height: 12),
+             const Divider(height: 24),
              Wrap(
-               runSpacing: 4, // Tighter spacing
-               spacing: 4, 
+               runSpacing: 12,
+               spacing: 0, 
                children: displayItems.map((e) {
-                 // Calculate width for 3 items per row roughly, or 2 if screen is very small
-                 // Screen width - card margin (approx 32) - card padding (20) = available width
-                 // If we want max 3 items, width is approx available / 3.
-                 // We subtract a bit for spacing.
-                 final double itemWidth = (MediaQuery.of(context).size.width - 60) / 3;
-                 
+                 final double itemWidth = (MediaQuery.of(context).size.width - 64) / 2;
                  return SizedBox(
                    width: itemWidth,
                    child: Column(
                      crossAxisAlignment: CrossAxisAlignment.start,
                      children: [
                        Text(
-                         e.key,
-                         style: TextStyle(color: Colors.grey.shade600, fontSize: 10),
+                         e.key.toUpperCase(),
+                         style: TextStyle(color: Colors.grey.shade600, fontSize: 10, fontWeight: FontWeight.bold),
                          overflow: TextOverflow.ellipsis,
                          maxLines: 1,
                        ),
+                       const SizedBox(height: 4),
                        Text(
                          e.value,
-                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black87),
                          overflow: TextOverflow.ellipsis,
-                         maxLines: 1,
+                         maxLines: 2,
                        )
                      ],
                    ),
@@ -670,6 +879,92 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
              )
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAdvAdjCompletedCard(dynamic item) {
+    final ticketNo = item['TicketNo'] ?? item['ticketno'] ?? '-';
+    final empName = item['EmpName'] ?? item['empname'] ?? '-';
+    final reqDate = item['ReqDate'] ?? item['date'] ?? item['SDate'] ?? '-';
+    final salaryMonth = item['SalaryMonth'] ?? '-';
+    final dedName = item['DedName'] ?? '-';
+    final adjAmount = item['AdjAmount'] ?? '-';
+    final status = item['App'] ?? '-';
+    final appBy = item['AppBy'] ?? '-';
+    final appOn = item['AppOn'] ?? '-';
+
+    bool isApproved = status.toString().toLowerCase() == 'approved';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _headerItem('TKT.NO', ticketNo),
+                _headerItem('REQ. DATE', reqDate),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isApproved ? Colors.green.shade50 : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    status.toString().toUpperCase(),
+                    style: TextStyle(
+                      color: isApproved ? Colors.green : Colors.orange,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _rowItem('Employee Name', empName.toString(), boldValue: true),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: _rowItem('Salary Period', salaryMonth.toString())),
+                    Expanded(child: _rowItem('Adj. Amount', adjAmount.toString(), color: Colors.blue.shade700, boldValue: true)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _rowItem('Deduction', dedName.toString()),
+                const SizedBox(height: 12),
+                const Divider(),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: _headerItem('APPROVED BY', appBy)),
+                    Expanded(child: _headerItem('APPROVED ON', appOn)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

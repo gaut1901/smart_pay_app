@@ -84,14 +84,14 @@ class _RequestScreenState extends State<RequestScreen> {
         'route': '/profile_edit',
       });
     }
-    if (_rights!['isProfile'] == true) {
+    /* if (_rights!['isProfile'] == true) {
       items.add({
         'title': 'Wages Detail',
         'icon': Icons.account_balance_wallet,
         'color': const Color(0xFFFD3995),
         'route': '/wages_detail',
       });
-    }
+    } */
     if (_rights!['isAttn'] == true) {
       items.add({
         'title': 'Apply Leave',

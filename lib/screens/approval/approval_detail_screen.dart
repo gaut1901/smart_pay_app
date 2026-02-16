@@ -42,6 +42,14 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
       setState(() {
         _details = details;
         _isLoading = false;
+        
+        // Pre-fill remarks if available
+        if (_details != null) {
+           String? existingRemarks = _details!['AppRemarks']?.toString() ?? _details!['AppRemarks1']?.toString();
+           if (existingRemarks != null && existingRemarks != 'null') {
+             _remarksController.text = existingRemarks;
+           }
+        }
       });
     } catch (e) {
       setState(() {
@@ -124,70 +132,66 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: AppStyles.modernCardDecoration,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.info, color: AppColors.primary, size: 24),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Request Information',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary.withValues(alpha: 0.8),
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(height: 32),
-                ...displayFields.map((field) => _buildDetailRow(field['label']!, field['value']!)),
-              ],
-            ),
-          ),
+          // Render dynamic fields as read-only form
+          ...displayFields.map((field) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildReadOnlyField(field['label']!, field['value']!),
+            );
+          }),
           const SizedBox(height: 24),
           const Text(
             'Approval Remarks',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textDark),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _remarksController,
-            maxLines: 3,
+            maxLines: 1, 
             decoration: InputDecoration(
-              hintText: 'Enter your remarks here...',
+              hintText: '-',
               filled: true,
               fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
             ),
           ),
-          const SizedBox(height: 100), // Space for bottom bar
+          const SizedBox(height: 100),
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+  Widget _buildReadOnlyField(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200, // Read-only background
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.transparent), // No border or subtle
           ),
-          const SizedBox(height: 4),
-          Text(
+          child: Text(
             value.isEmpty ? '-' : value,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textDark),
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -240,19 +244,43 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
 
     final List<Map<String, String>> fields = [];
 
+    // Helper to get value from multiple possible keys
+    String? getValue(List<String> keys) {
+      for (var key in keys) {
+        if (_details!.containsKey(key) && _details![key] != null && _details![key].toString() != 'null') {
+          return _details![key].toString();
+        }
+      }
+      return null;
+    }
+
     // Common fields
-    if (_details!.containsKey('EmpName')) fields.add({'label': 'Employee', 'value': _details!['EmpName'].toString()});
-    if (_details!.containsKey('TicketNo')) fields.add({'label': 'Ticket No', 'value': _details!['TicketNo'].toString()});
-    if (_details!.containsKey('SDate')) fields.add({'label': 'Request Date', 'value': _details!['SDate'].toString()});
+    String? empName = getValue(['EmpName1', 'EmpName']);
+    if (empName != null) fields.add({'label': 'Employee', 'value': empName});
+    
+    String? ticketNo = getValue(['TicketNo1', 'TicketNo']);
+    if (ticketNo != null) fields.add({'label': 'Ticket No', 'value': ticketNo});
+    
+    String? sDate = getValue(['SDate1', 'SDate']);
+    if (sDate != null) fields.add({'label': 'Request Date', 'value': sDate});
 
     switch (widget.type) {
       case 'Attendance':
       case 'Leave':
-        if (_details!.containsKey('FromDate')) fields.add({'label': 'From Date', 'value': _details!['FromDate'].toString()});
-        if (_details!.containsKey('ToDate')) fields.add({'label': 'To Date', 'value': _details!['ToDate'].toString()});
-        if (_details!.containsKey('Days')) fields.add({'label': 'Days', 'value': _details!['Days'].toString()});
-        if (_details!.containsKey('Status')) fields.add({'label': 'Type', 'value': _details!['Status'].toString()});
-        if (_details!.containsKey('LRName')) fields.add({'label': 'Reason', 'value': _details!['LRName'].toString()});
+        String? fDate = getValue(['FromDate1', 'FromDate']);
+        if (fDate != null) fields.add({'label': 'From Date', 'value': fDate});
+        
+        String? tDate = getValue(['ToDate1', 'ToDate']);
+        if (tDate != null) fields.add({'label': 'To Date', 'value': tDate});
+        
+        String? days = getValue(['Days', 'OldDays']); 
+        if (days != null) fields.add({'label': 'Days', 'value': days});
+        
+        String? status = getValue(['Status1', 'Status', 'MStatus1', 'MStatus']);
+        if (status != null) fields.add({'label': 'Leave Name', 'value': status});
+        
+        String? lrName = getValue(['Remarks1', 'Remarks', 'LRName']);
+        if (lrName != null) fields.add({'label': 'Reason', 'value': lrName});
         break;
       case 'Permission':
         if (_details!.containsKey('FromTime')) fields.add({'label': 'From Time', 'value': _details!['FromTime'].toString()});
@@ -260,9 +288,13 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
         if (_details!.containsKey('LRName')) fields.add({'label': 'Reason', 'value': _details!['LRName'].toString()});
         break;
       case 'Advance':
+      case 'AdvAdj':
       case 'AdvanceAdjustment':
         if (_details!.containsKey('Amount')) fields.add({'label': 'Amount', 'value': _details!['Amount'].toString()});
         if (_details!.containsKey('AdvAmount')) fields.add({'label': 'Advance Amount', 'value': _details!['AdvAmount'].toString()});
+        if (_details!.containsKey('AdjAmount')) fields.add({'label': 'Adjustment Amount', 'value': _details!['AdjAmount'].toString()});
+        if (_details!.containsKey('SalaryMonth')) fields.add({'label': 'Salary Period', 'value': _details!['SalaryMonth'].toString()});
+        if (_details!.containsKey('DedName')) fields.add({'label': 'Deduction', 'value': _details!['DedName'].toString()});
         if (_details!.containsKey('InstAmt')) fields.add({'label': 'Installment', 'value': _details!['InstAmt'].toString()});
         if (_details!.containsKey('NoOfInst')) fields.add({'label': 'No. of Inst.', 'value': _details!['NoOfInst'].toString()});
         if (_details!.containsKey('Purpose')) fields.add({'label': 'Purpose', 'value': _details!['Purpose'].toString()});
@@ -295,8 +327,12 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
         break;
     }
 
-    if (_details!.containsKey('Remarks') && !fields.any((f) => f['label'] == 'Remarks')) {
-      fields.add({'label': 'Employee Remarks', 'value': _details!['Remarks'].toString()});
+    // Add generic remarks if not captured by specific logic
+    String? genericRemarks = getValue(['Remarks', 'Remarks1']);
+    // Avoid duplicate Reason/Remarks if handled above
+    bool alreadyHasReason = fields.any((f) => f['label'] == 'Reason' || f['label'] == 'Remarks');
+    if (!alreadyHasReason && genericRemarks != null) {
+       fields.add({'label': 'Employee Remarks', 'value': genericRemarks});
     }
 
     return fields;
