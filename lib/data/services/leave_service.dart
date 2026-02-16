@@ -35,7 +35,7 @@ class LeaveService {
     if (user == null) throw Exception('User not logged in');
 
     final targetDate = date ?? DateTime.now();
-    final dateStr = '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
+    final dateStr = '${targetDate.day.toString().padLeft(2, '0')}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.year}';
     final url = Uri.parse('${ApiConfig.baseUrl}api/emplreq/getLeaveBalance/?fdate=$dateStr');
     
     try {
