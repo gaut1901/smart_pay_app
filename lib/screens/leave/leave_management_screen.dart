@@ -64,7 +64,10 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _historySearchController = TextEditingController();
   List<LeaveBalance> _filteredBalances = [];
+  List<LeaveRequest> _dateFilteredHistory = [];
   List<LeaveRequest> _filteredHistory = [];
+  DateTime _historyFromDate = DateTime.now();
+  DateTime _historyToDate = DateTime.now();
   int _rowsPerPage = 10;
   final List<int> _rowsPerPageOptions = [10, 25, 50, 100];
   List<String> _leaveHeaders = [];
@@ -75,6 +78,11 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    
+    final now = DateTime.now();
+    _historyFromDate = DateTime(now.year, now.month, 1);
+    _historyToDate = now;
+
     // _generatePeriodOptions(); // Removed static generation
     _loadData();
     _fetchLookup();
@@ -111,22 +119,57 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   }
 
   void _onHistorySearchChanged() {
-    _filterHistory();
-  }
-
-  void _filterHistory() {
     setState(() {
-      if (_historySearchController.text.isEmpty) {
-        _filteredHistory = List.from(_history);
+      String query = _historySearchController.text.toLowerCase();
+      if (query.isEmpty) {
+        _filteredHistory = List.from(_dateFilteredHistory);
       } else {
-        final query = _historySearchController.text.toLowerCase();
-        _filteredHistory = _history.where((item) => 
+        _filteredHistory = _dateFilteredHistory.where((item) => 
           item.empName.toLowerCase().contains(query) ||
           item.ticketNo.toLowerCase().contains(query) ||
           item.status.toLowerCase().contains(query) ||
           item.remarks.toLowerCase().contains(query)
         ).toList();
       }
+    });
+  }
+
+  void _filterHistory() {
+     _onHistorySearchChanged();
+  }
+
+  Future<void> _selectHistoryDate(bool isFrom) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: isFrom ? _historyFromDate : _historyToDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isFrom) {
+          _historyFromDate = picked;
+        } else {
+          _historyToDate = picked;
+        }
+      });
+    }
+  }
+
+  void _applyHistoryDateFilter() {
+    setState(() {
+      _dateFilteredHistory = _history.where((item) {
+        try {
+          // Assuming fDate is the leave start date in dd-MM-yyyy format
+          DateTime itemDate = DateFormat('dd-MM-yyyy').parse(item.fDate);
+          DateTime start = DateTime(_historyFromDate.year, _historyFromDate.month, _historyFromDate.day);
+          DateTime end = DateTime(_historyToDate.year, _historyToDate.month, _historyToDate.day).add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
+          return itemDate.isAfter(start.subtract(const Duration(seconds: 1))) && itemDate.isBefore(end.add(const Duration(seconds: 1)));
+        } catch (e) {
+          return false;
+        }
+      }).toList();
+      _onHistorySearchChanged(); // Re-apply text search
     });
   }
 
@@ -183,7 +226,8 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
       final history = await _leaveService.getLeaveHistory();
       setState(() {
         _history = history;
-        _filterHistory(); // Initial filter
+        _dateFilteredHistory = history;
+        _applyHistoryDateFilter(); // Apply default date filter
         _isLoadingHistory = false;
       });
     } catch (e) {
@@ -202,8 +246,13 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
     try {
       // Restore: Always fetch current balance for "Apply Leave" tab
       final balances = await _leaveService.getLeaveBalance();
+      // Deduplicate balances
+      final uniqueBalances = <String, LeaveBalance>{};
+      for (var b in balances) {
+        uniqueBalances[b.leaveType] = b;
+      }
       setState(() {
-        _balances = balances;
+        _balances = uniqueBalances.values.toList();
         _isLoadingBalance = false;
       });
     } catch (e) {
@@ -262,6 +311,12 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
       // 1. Fetch summary balance (Opening, Credit, Taken, etc.)
       final balances = await _leaveService.getLeaveBalance(date: _periodStartDate);
       
+      // Deduplicate balances
+      final uniqueBalances = <String, LeaveBalance>{};
+      for (var b in balances) {
+        uniqueBalances[b.leaveType] = b;
+      }
+      
       // 2. Fetch detailed balance and status summary (dt and dt1)
       List<dynamic> details = [];
       List<dynamic> status = [];
@@ -276,7 +331,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
       }
 
       setState(() {
-        _periodBalances = balances;
+        _periodBalances = uniqueBalances.values.toList();
         _balanceDetails = details;
         _statusDetails = status;
         _isLoadingPeriodBalance = false;
@@ -1438,62 +1493,114 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
 
   Widget _buildTableActionsRow() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                const Text('Rows Per Page', style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.bold)),
-                const SizedBox(width: 10),
-                Container(
-                  padding: EdgeInsets.zero, // Removed padding
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300), 
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.white,
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: _rowsPerPage,
-                      icon: const Icon(Icons.keyboard_arrow_down, size: 20, color: AppColors.primary),
-                      items: _rowsPerPageOptions.map((int val) {
-                        return DropdownMenuItem<int>(
-                          value: val,
-                          child: Text('$val', style: const TextStyle(fontSize: 13)),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) setState(() => _rowsPerPage = val);
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+        _buildHistoryDateFilterRow(),
         const SizedBox(height: 16),
-        Container(
-          height: 45,
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300), 
-            borderRadius: BorderRadius.circular(8),
-            color: Colors.white,
-          ),
-          child: TextField(
-            controller: _historySearchController,
-            decoration: const InputDecoration(
-              hintText: 'Search History...',
-              hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: InputBorder.none,
-              suffixIcon: Icon(Icons.search, size: 20, color: AppColors.primary),
+        _buildHistorySearchAndRowsRow(),
+      ],
+    );
+  }
+
+  Widget _buildHistoryDateFilterRow() {
+    return Container(
+      color: Colors.white,
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () => _selectHistoryDate(true),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'From Date',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  suffixIcon: Icon(Icons.calendar_today, size: 18),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                child: Text(
+                  DateFormat('dd-MM-yyyy').format(_historyFromDate),
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: InkWell(
+              onTap: () => _selectHistoryDate(false),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'To Date',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  suffixIcon: Icon(Icons.calendar_today, size: 18),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                child: Text(
+                  DateFormat('dd-MM-yyyy').format(_historyToDate),
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFE53935), // Red color
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.search, color: Colors.white),
+              onPressed: _applyHistoryDateFilter,
+              tooltip: 'Filter',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistorySearchAndRowsRow() {
+    return Container(
+      color: Colors.white,
+      child: Row(
+        children: [
+          // Row per page
+          const Text('Rows: '),
+          DropdownButton<int>(
+            value: _rowsPerPage,
+            items: _rowsPerPageOptions.map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
+            onChanged: (val) {
+                if (val != null) setState(() => _rowsPerPage = val);
+            },
+            underline: Container(), // Remove underline
+          ),
+          const SizedBox(width: 16),
+          // Search Box
+          Expanded(
+            child: SizedBox(
+              height: 40,
+              child: TextField(
+                controller: _historySearchController,
+                decoration: InputDecoration(
+                  hintText: 'Search...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                onChanged: (_) => _onHistorySearchChanged(),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

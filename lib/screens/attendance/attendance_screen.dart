@@ -20,10 +20,32 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   DateTime _fromDate = DateTime.now().subtract(const Duration(days: 30));
   DateTime _toDate = DateTime.now();
 
+  // Search & Pagination State
+  final TextEditingController _searchController = TextEditingController();
+  int _rowsPerPage = 10;
+  List<AttendanceRecord> _filteredRecords = [];
+
   @override
   void initState() {
     super.initState();
     _loadInitialDates();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      if (_historyResponse == null) return;
+      
+      if (_searchController.text.isEmpty) {
+        _filteredRecords = _historyResponse!.attendanceRecords;
+      } else {
+        final query = _searchController.text.toLowerCase();
+        _filteredRecords = _historyResponse!.attendanceRecords.where((record) => 
+          record.date.toLowerCase().contains(query) ||
+          record.status.toLowerCase().contains(query)
+        ).toList();
+      }
+    });
   }
 
   Future<void> _loadInitialDates() async {
@@ -52,7 +74,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final data = await _attendanceService.getAttendanceHistory(fromStr, toStr);
       setState(() {
         _historyResponse = data;
+        _filteredRecords = data.attendanceRecords;
         _isLoading = false;
+        _onSearchChanged();
       });
     } catch (e) {
       setState(() {
@@ -140,64 +164,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // From Date Picker
-                    _buildDatePicker(
-                      context,
-                      'From Date',
-                      _fromDate,
-                      true,
-                    ),
+                    // Date Filters Row
+                    _buildDateFilterRow(),
                     const SizedBox(height: 16),
                     
-                    // To Date Picker
-                    _buildDatePicker(
-                      context,
-                      'To Date',
-                      _toDate,
-                      false,
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    // Search Button
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: SizedBox(
-                        width: 60,
-                        height: 44,
-                        child: ElevatedButton(
-                          onPressed: _loadAttendance,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFE53935),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: EdgeInsets.zero,
-                            elevation: 0,
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.search,
-                                  color: Colors.white,
-                                  size: 22,
-                                ),
-                        ),
-                      ),
-                    ),
+                    // Search & Rows Row
+                    _buildSearchAndRowsRow(),
                     const SizedBox(height: 24),
-                    
-                    // Table Header
-                    _buildTableHeader(),
-                    const SizedBox(height: 12),
-                    
-                    // Attendance Records Table
+
                     if (_error != null)
                       Padding(
                         padding: const EdgeInsets.all(16),
@@ -206,15 +180,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           style: const TextStyle(color: Colors.red),
                         ),
                       )
-                    else if (_historyResponse != null && 
-                             _historyResponse!.attendanceRecords.isNotEmpty)
-                      ..._buildAttendanceRows()
-                    else if (!_isLoading)
+                    else if (_historyResponse != null && _filteredRecords.isNotEmpty) ...[
+                       _buildAttendanceCards(),
+                       const SizedBox(height: 16),
+                       _buildPaginationFooter(_filteredRecords.length),
+                    ] else if (!_isLoading)
                       const Padding(
                         padding: EdgeInsets.all(16),
                         child: Center(
                           child: Text(
-                            'No records found. Click search to load data.',
+                            'No records found.',
                             style: TextStyle(color: Colors.grey),
                           ),
                         ),
@@ -238,104 +213,101 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-  Widget _buildDatePicker(BuildContext context, String label, DateTime date, bool isFromDate) {
-    return InkWell(
-      onTap: () => _selectDate(context, isFromDate),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.calendar_today,
-              size: 18,
-              color: Colors.grey.shade600,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              DateFormat('dd-MM-yyyy').format(date),
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
+  Widget _buildDateFilterRow() {
+    return Container(
+      color: Colors.white,
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () => _selectDate(context, true),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'From Date',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  suffixIcon: Icon(Icons.calendar_today, size: 18),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                child: Text(
+                  DateFormat('dd-MM-yyyy').format(_fromDate),
+                  style: const TextStyle(fontSize: 14),
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: InkWell(
+              onTap: () => _selectDate(context, false),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'To Date',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  suffixIcon: Icon(Icons.calendar_today, size: 18),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                child: Text(
+                  DateFormat('dd-MM-yyyy').format(_toDate),
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFE53935), // Red color
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: IconButton(
+              icon: _isLoading 
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.search, color: Colors.white),
+              onPressed: _isLoading ? null : _loadAttendance,
+              tooltip: 'Filter',
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTableHeader() {
+  Widget _buildSearchAndRowsRow() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: const Row(
+      color: Colors.white,
+      child: Row(
         children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              'DATE',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: Colors.black87,
-              ),
-            ),
+          const Text('Rows: '),
+          DropdownButton<int>(
+            value: _rowsPerPage,
+            items: [10, 25, 50, 100].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
+            onChanged: (val) {
+                if (val != null) setState(() => _rowsPerPage = val);
+            },
+            underline: Container(), // Remove underline
           ),
+          const SizedBox(width: 16),
           Expanded(
-            flex: 2,
-            child: Text(
-              'STATUS',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: Colors.black87,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'IN',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: Colors.black87,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'LOUT',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: Colors.black87,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'LIN',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: Colors.black87,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'OUT',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: Colors.black87,
+            child: SizedBox(
+              height: 40,
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                onChanged: (_) => _onSearchChanged(),
               ),
             ),
           ),
@@ -344,63 +316,88 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-  List<Widget> _buildAttendanceRows() {
-    return _historyResponse!.attendanceRecords.map((record) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade200),
+  Widget _buildAttendanceCards() {
+    int displayCount = _filteredRecords.length > _rowsPerPage ? _rowsPerPage : _filteredRecords.length;
+    List<AttendanceRecord> displayedItems = _filteredRecords.take(displayCount).toList();
+
+    return Column(
+      children: displayedItems.map((item) => _buildAttendanceCard(item)).toList(),
+    );
+  }
+
+  Widget _buildAttendanceCard(AttendanceRecord item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildCardItem('DATE', item.date, flex: 1),
+              _buildCardItem('STATUS', item.status, flex: 1, isHighlight: true, color: _getStatusColor(item.status)),
+            ],
           ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: Text(
-                record.date,
-                style: const TextStyle(fontSize: 12, color: Colors.black87),
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(
-                record.status,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _getStatusColor(record.status),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                record.checkIn.isEmpty ? '--' : record.checkIn,
-                style: const TextStyle(fontSize: 11, color: Colors.black87),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                record.lunchOut.isEmpty ? '--' : record.lunchOut,
-                style: const TextStyle(fontSize: 11, color: Colors.black87),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                record.lunchIn.isEmpty ? '--' : record.lunchIn,
-                style: const TextStyle(fontSize: 11, color: Colors.black87),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                record.checkOut.isEmpty ? '--' : record.checkOut,
-                style: const TextStyle(fontSize: 11, color: Colors.black87),
-              ),
-            ),
-          ],
-        ),
-      );
-    }).toList();
+          const Divider(height: 16),
+          Row(
+            children: [
+              _buildCardItem('IN', item.checkIn.isEmpty ? '--' : item.checkIn, flex: 1),
+              _buildCardItem('L.OUT', item.lunchOut.isEmpty ? '--' : item.lunchOut, flex: 1),
+            ],
+          ),
+           const SizedBox(height: 8),
+          Row(
+            children: [
+              _buildCardItem('L.IN', item.lunchIn.isEmpty ? '--' : item.lunchIn, flex: 1),
+              _buildCardItem('OUT', item.checkOut.isEmpty ? '--' : item.checkOut, flex: 1),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardItem(String label, String value, {int flex = 1, bool isHighlight = false, Color? color}) {
+    return Expanded(
+      flex: flex,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(
+            fontSize: 13, 
+            fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+            color: color ?? (isHighlight ? AppColors.primary : const Color(0xFF1E1E1E)),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaginationFooter(int count) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Showing 1 to $count of $count entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          const Row(
+            children: [
+              Icon(Icons.chevron_left, color: Colors.grey),
+              SizedBox(width: 16),
+              Icon(Icons.chevron_right, color: Colors.grey),
+            ],
+          )
+        ],
+      ),
+    );
   }
 
   Widget _buildSummaryTable(String title, List<AttendanceSummary> summaries) {

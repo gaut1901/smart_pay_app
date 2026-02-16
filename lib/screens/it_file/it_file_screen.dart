@@ -51,12 +51,20 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   // Table & Search State
   final TextEditingController _searchController = TextEditingController();
   int _rowsPerPage = 10;
+  List<ITFileRequest> _dateFilteredHistory = [];
   List<ITFileRequest> _filteredHistory = [];
+  DateTime _historyFromDate = DateTime.now();
+  DateTime _historyToDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    final now = DateTime.now();
+    _historyFromDate = DateTime(now.year, now.month, 1);
+    _historyToDate = now;
+
     _loadData();
     _searchController.addListener(_onSearchChanged);
   }
@@ -64,14 +72,49 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   void _onSearchChanged() {
     setState(() {
       if (_searchController.text.isEmpty) {
-        _filteredHistory = _history;
+        _filteredHistory = List.from(_dateFilteredHistory);
       } else {
-        _filteredHistory = _history.where((request) => 
+        _filteredHistory = _dateFilteredHistory.where((request) => 
           (request.ticketNo.toLowerCase().contains(_searchController.text.toLowerCase())) ||
           (request.empName.toLowerCase().contains(_searchController.text.toLowerCase())) ||
           (request.itHead.toLowerCase().contains(_searchController.text.toLowerCase()))
         ).toList();
       }
+    });
+  }
+
+  Future<void> _selectHistoryDate(bool isFrom) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: isFrom ? _historyFromDate : _historyToDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isFrom) {
+          _historyFromDate = picked;
+        } else {
+          _historyToDate = picked;
+        }
+      });
+    }
+  }
+
+  void _applyHistoryDateFilter() {
+    setState(() {
+      _dateFilteredHistory = _history.where((item) {
+        try {
+          // ITFileRequest has sDate mapped from EntryDate
+          DateTime itemDate = DateFormat('dd-MM-yyyy').parse(item.sDate);
+          DateTime start = DateTime(_historyFromDate.year, _historyFromDate.month, _historyFromDate.day);
+          DateTime end = DateTime(_historyToDate.year, _historyToDate.month, _historyToDate.day).add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
+          return itemDate.isAfter(start.subtract(const Duration(seconds: 1))) && itemDate.isBefore(end.add(const Duration(seconds: 1)));
+        } catch (e) {
+          return false;
+        }
+      }).toList();
+      _onSearchChanged(); // Re-apply text search
     });
   }
 
@@ -93,10 +136,10 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
       if (mounted) {
         setState(() {
           _history = history;
-          _filteredHistory = history;
+          _dateFilteredHistory = history;
+          _applyHistoryDateFilter();
           _isLoadingHistory = false;
         });
-        _onSearchChanged();
       }
     } catch (e) {
       if (mounted) {
@@ -740,50 +783,114 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
 
   Widget _buildTableActionsRow() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const Text('Row Per Page', style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.bold)),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
-                  value: _rowsPerPage,
-                  isDense: true,
-                  icon: const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.blue),
-                  items: [10, 25, 50, 100].map((int val) {
-                    return DropdownMenuItem<int>(
-                      value: val,
-                      child: Text('$val', style: const TextStyle(fontSize: 12)),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _rowsPerPage = val);
-                  },
+        _buildHistoryDateFilterRow(),
+        const SizedBox(height: 16),
+        _buildHistorySearchAndRowsRow(),
+      ],
+    );
+  }
+
+  Widget _buildHistoryDateFilterRow() {
+    return Container(
+      color: Colors.white,
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () => _selectHistoryDate(true),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'From Date',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  suffixIcon: Icon(Icons.calendar_today, size: 18),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                child: Text(
+                  DateFormat('dd-MM-yyyy').format(_historyFromDate),
+                  style: const TextStyle(fontSize: 14),
                 ),
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Container(
-          height: 40,
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
-          child: TextField(
-            controller: _searchController,
-            decoration: const InputDecoration(
-              hintText: 'Search by Ticket No, Name or IT Head',
-              hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border: InputBorder.none,
-              suffixIcon: Icon(Icons.search, size: 20, color: Colors.grey),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: InkWell(
+              onTap: () => _selectHistoryDate(false),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'To Date',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  suffixIcon: Icon(Icons.calendar_today, size: 18),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                child: Text(
+                  DateFormat('dd-MM-yyyy').format(_historyToDate),
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFE53935), // Red color
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.search, color: Colors.white),
+              onPressed: _applyHistoryDateFilter,
+              tooltip: 'Filter',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistorySearchAndRowsRow() {
+    return Container(
+      color: Colors.white,
+      child: Row(
+        children: [
+          // Row per page
+          const Text('Rows: '),
+          DropdownButton<int>(
+            value: _rowsPerPage,
+            items: [10, 25, 50, 100].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
+            onChanged: (val) {
+                if (val != null) setState(() => _rowsPerPage = val);
+            },
+            underline: Container(), // Remove underline
+          ),
+          const SizedBox(width: 16),
+          // Search Box
+          Expanded(
+            child: SizedBox(
+              height: 40,
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                onChanged: (_) => _onSearchChanged(),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -40,27 +40,72 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
   final TextEditingController _searchController = TextEditingController();
   int _rowsPerPage = 10;
   int _currentPage = 0;
+  List<CompOffRequest> _dateFilteredHistory = [];
   List<CompOffRequest> _filteredHistory = [];
+
+  // Date Filters
+  DateTime _fromDate = DateTime.now();
+  DateTime _toDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    final now = DateTime.now();
+    _fromDate = DateTime(now.year, now.month, 1);
+    _toDate = now;
+
     _loadData();
     _searchController.addListener(_onSearchChanged);
   }
 
   void _onSearchChanged() {
     setState(() {
-      if (_searchController.text.isEmpty) {
-        _filteredHistory = _history;
+      String query = _searchController.text.toLowerCase();
+      if (query.isEmpty) {
+        _filteredHistory = List.from(_dateFilteredHistory);
       } else {
-        _filteredHistory = _history.where((request) => 
-          request.ticketNo.toLowerCase().contains(_searchController.text.toLowerCase()) ||
-          request.empName.toLowerCase().contains(_searchController.text.toLowerCase())
+        _filteredHistory = _dateFilteredHistory.where((request) => 
+          request.ticketNo.toLowerCase().contains(query) ||
+          request.empName.toLowerCase().contains(query)
         ).toList();
       }
       _currentPage = 0;
+    });
+  }
+
+  Future<void> _selectDate(bool isFrom) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: isFrom ? _fromDate : _toDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isFrom) {
+          _fromDate = picked;
+        } else {
+          _toDate = picked;
+        }
+      });
+    }
+  }
+
+  void _applyDateFilter() {
+    setState(() {
+      _dateFilteredHistory = _history.where((item) {
+        try {
+          DateTime itemDate = DateFormat('dd-MM-yyyy').parse(item.sDate);
+          DateTime start = DateTime(_fromDate.year, _fromDate.month, _fromDate.day);
+          DateTime end = DateTime(_toDate.year, _toDate.month, _toDate.day).add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
+          return itemDate.isAfter(start.subtract(const Duration(seconds: 1))) && itemDate.isBefore(end.add(const Duration(seconds: 1)));
+        } catch (e) {
+          return false;
+        }
+      }).toList();
+      _onSearchChanged();
     });
   }
 
@@ -96,9 +141,10 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
       final history = await _compOffService.getLeaveCompensationHistory();
       setState(() {
         _history = history;
+        _dateFilteredHistory = history;
         _filteredHistory = history;
         _isLoadingHistory = false;
-        _onSearchChanged(); // Re-apply search if exists
+        _applyDateFilter(); // Apply default date filter
       });
     } catch (e) {
       setState(() {
@@ -559,50 +605,114 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
 
   Widget _buildTableActionsRow() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const Text('Row Per Page', style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.bold)),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
-                  value: _rowsPerPage,
-                  isDense: true,
-                  icon: const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.blue),
-                  items: [10, 25, 50, 100].map((int val) {
-                    return DropdownMenuItem<int>(
-                      value: val,
-                      child: Text('$val', style: const TextStyle(fontSize: 12)),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _rowsPerPage = val);
-                  },
+        _buildDateFilterRow(),
+        const SizedBox(height: 16),
+        _buildSearchAndRowsRow(),
+      ],
+    );
+  }
+
+  Widget _buildDateFilterRow() {
+    return Container(
+      color: Colors.white,
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () => _selectDate(true),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'From Date',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  suffixIcon: Icon(Icons.calendar_today, size: 18),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                child: Text(
+                  DateFormat('dd-MM-yyyy').format(_fromDate),
+                  style: const TextStyle(fontSize: 14),
                 ),
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Container(
-          height: 40,
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
-          child: TextField(
-            controller: _searchController,
-            decoration: const InputDecoration(
-              hintText: 'Search by Ticket No or Name',
-              hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border: InputBorder.none,
-              suffixIcon: Icon(Icons.search, size: 20, color: Colors.grey),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: InkWell(
+              onTap: () => _selectDate(false),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'To Date',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  suffixIcon: Icon(Icons.calendar_today, size: 18),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                child: Text(
+                  DateFormat('dd-MM-yyyy').format(_toDate),
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFE53935), // Red color
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.search, color: Colors.white),
+              onPressed: _applyDateFilter,
+              tooltip: 'Filter',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchAndRowsRow() {
+    return Container(
+      color: Colors.white,
+      child: Row(
+        children: [
+          // Row per page
+          const Text('Rows: '),
+          DropdownButton<int>(
+            value: _rowsPerPage,
+            items: [10, 25, 50, 100].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
+            onChanged: (val) {
+                if (val != null) setState(() => _rowsPerPage = val);
+            },
+            underline: Container(), // Remove underline
+          ),
+          const SizedBox(width: 16),
+          // Search Box
+          Expanded(
+            child: SizedBox(
+              height: 40,
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                onChanged: (_) => _onSearchChanged(),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
