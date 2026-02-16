@@ -163,9 +163,6 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
         _reasons = lookupData['dtReason'] ?? [];
         
         // Default values
-        if (_leaveNames.isNotEmpty) {
-          _selectedLeaveName = _leaveNames[0]['Status'];
-        }
         if (_reasons.isNotEmpty) {
           _selectedReason = _reasons[0]['LRName'];
         }
@@ -206,6 +203,11 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
       postData["Remarks"] = _remarksController.text.trim();
       postData["Actions"] = _currentAction;
       postData["EditId"] = _editId ?? '';
+      
+      // Ensure App field is present (required by backend)
+      if (!postData.containsKey("App") || postData["App"] == null) {
+        postData["App"] = "";
+      }
 
       await _compOffService.submitLeaveCompensation(postData);
       

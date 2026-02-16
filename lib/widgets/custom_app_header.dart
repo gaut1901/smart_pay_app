@@ -28,14 +28,16 @@ class CustomAppHeader extends StatelessWidget implements PreferredSizeWidget {
             height: 30,
             color: Colors.white,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(color: Colors.white, fontSize: 18),
-              overflow: TextOverflow.ellipsis,
+          if (title.isNotEmpty) ...[
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
+          ],
         ],
       ),
       backgroundColor: AppColors.primary,

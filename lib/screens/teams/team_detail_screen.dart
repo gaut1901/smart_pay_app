@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:smartpay_flutter/widgets/main_drawer.dart';
 import '../../core/constants.dart';
 import '../../data/models/team_model.dart';
 import '../../data/services/team_service.dart';
@@ -98,9 +99,11 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: CustomAppHeader(
-        title: 'Team Member Details',
+        title: '', // Show logo only as requested
         user: user,
+        actions: const [], // Remove profile icon from app bar actions
       ),
+      drawer: const MainDrawer(),
       body: _isLoading && _member == null
           ? const Center(child: CircularProgressIndicator())
           : _error != null && _member == null
@@ -150,20 +153,8 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
       ),
       child: Column(
         children: [
-          // Profile Photo
-          CircleAvatar(
-            radius: 50,
-            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-            backgroundImage: _member!.photoBase64 != null && _member!.photoBase64!.length > 100
-                ? MemoryImage(
-                    base64Decode(_member!.photoBase64!.split(',').last),
-                  )
-                : null,
-            child: _member!.photoBase64 == null || _member!.photoBase64!.length <= 100
-                ? const Icon(Icons.person, size: 50, color: AppColors.primary)
-                : null,
-          ),
-          const SizedBox(height: 16),
+          // Profile Photo removed as requested
+          const SizedBox(height: 8),
           // Name and Code
           Text(
             _member!.displayName,

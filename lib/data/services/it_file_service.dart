@@ -85,7 +85,12 @@ class ITFileService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return jsonDecode(data['response']);
+        final responseData = jsonDecode(data['response']);
+        final error = responseData['error'];
+        if (error != null && error.toString().trim().isNotEmpty && error.toString().trim().toLowerCase() != "null") {
+           throw Exception(error.toString());
+        }
+        return responseData;
       } else {
         throw Exception('Failed to load IT file lookup: ${response.statusCode}');
       }
@@ -108,9 +113,38 @@ class ITFileService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return jsonDecode(data['response']);
+        final responseData = jsonDecode(data['response']);
+        final error = responseData['error'];
+        if (error != null && error.toString().trim().isNotEmpty && error.toString().trim().toLowerCase() != "null") {
+           throw Exception(error.toString());
+        }
+        return responseData;
       } else {
         throw Exception('Failed to load IT file details: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getDownloadFile(String filePath) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}api/home/getDownloadFile');
+    
+    try {
+      final response = await http.post(
+        url,
+        headers: user.toHeaders(),
+        body: jsonEncode({"FilePath": filePath}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return jsonDecode(data['response']);
+      } else {
+        throw Exception('Failed to get download file: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
@@ -186,7 +220,7 @@ class ITFileService {
     required double pAmount,
     required double aAmount,
     File? file,
-    String actions = "Add",
+    String actions = "Create",
     String editId = "",
     String app = "-",
     String delIds = "0",
@@ -237,8 +271,8 @@ class ITFileService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final responseData = jsonDecode(data['response']);
-        if (responseData['JSONResult'] != 0) {
-          throw Exception(responseData['error'] ?? 'Failed to submit IT file');
+        if (responseData['JSONResult']?.toString() != "0") {
+          throw Exception(responseData['error'] ?? 'Backend error: ${responseData.toString()}');
         }
       } else {
         throw Exception('Server error: ${response.statusCode}');

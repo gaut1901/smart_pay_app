@@ -107,16 +107,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('SmartPAY Dashboard', style: TextStyle(color: Colors.white, fontSize: 18)),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
+        title: SvgPicture.asset(
+          'assets/images/logo.svg',
+          height: 30,
+          color: Colors.white,
+        ),
+        centerTitle: true,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadDashboardData,
-          ),
-        ],
       ),
       drawer: _buildDrawer(context, user),
       body: _isLoading

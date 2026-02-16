@@ -26,7 +26,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   List<dynamic> _dtEmp = [];
   List<dynamic> _dtSlab = [];
   List<dynamic> _dtITHeadType = [];
-  List<dynamic> _dtITHead = [];
+  List<String> _dtITHead = [];
   List<dynamic> _dtDet = []; // Details/Attachments
   bool _isLoadingLookups = true;
 
@@ -104,15 +104,21 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   void _applyHistoryDateFilter() {
     setState(() {
       _dateFilteredHistory = _history.where((item) {
+        if (item.sDate.isEmpty) return false;
+        DateTime? itemDate;
         try {
-          // ITFileRequest has sDate mapped from EntryDate
-          DateTime itemDate = DateFormat('dd-MM-yyyy').parse(item.sDate);
-          DateTime start = DateTime(_historyFromDate.year, _historyFromDate.month, _historyFromDate.day);
-          DateTime end = DateTime(_historyToDate.year, _historyToDate.month, _historyToDate.day).add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
-          return itemDate.isAfter(start.subtract(const Duration(seconds: 1))) && itemDate.isBefore(end.add(const Duration(seconds: 1)));
-        } catch (e) {
-          return false;
+          itemDate = DateFormat('dd-MM-yyyy').parse(item.sDate);
+        } catch (_) {
+          try {
+            itemDate = DateTime.parse(item.sDate);
+          } catch (_) {
+            return false;
+          }
         }
+        
+        DateTime start = DateTime(_historyFromDate.year, _historyFromDate.month, _historyFromDate.day);
+        DateTime end = DateTime(_historyToDate.year, _historyToDate.month, _historyToDate.day).add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
+        return itemDate.isAfter(start.subtract(const Duration(seconds: 1))) && itemDate.isBefore(end.add(const Duration(seconds: 1)));
       }).toList();
       _onSearchChanged(); // Re-apply text search
     });
@@ -170,15 +176,15 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
         _dtEmp = data['dtEmp'] ?? [];
         _dtSlab = data['dtSlab'] ?? [];
         _dtITHeadType = data['dtITHeadType'] ?? [];
-        _dtITHead = data['dtITHead'] ?? [];
+        _dtITHead = (data['dtITHead'] as List? ?? []).map((e) => e['ITHead']?.toString().trim() ?? '').where((e) => e.isNotEmpty).toSet().toList();
         _dtDet = data['dtDet'] ?? [];
         _delIds = data['DelIds']?.toString() ?? '0';
 
         if (_action == 'Create') {
-            if (_dtFinYear.isNotEmpty) _selectedFinYear = _dtFinYear[0]['FinYear'];
+            if (_dtFinYear.isNotEmpty) _selectedFinYear = _dtFinYear[0]['FinYear']?.toString().trim();
             if (_dtEmp.isNotEmpty) _selectedEmpName = (_dtEmp[0]['EMPNAME']?.toString() ?? '').trim().replaceAll(RegExp(r'\s+'), ' ');
-            if (_dtSlab.isNotEmpty) _selectedSlab = _dtSlab[0]['ITSlabName'];
-            if (_dtITHeadType.isNotEmpty) _selectedITHeadType = _dtITHeadType[0]['ITHeadType'];
+            if (_dtSlab.isNotEmpty) _selectedSlab = _dtSlab[0]['ITSlabName']?.toString().trim();
+            if (_dtITHeadType.isNotEmpty) _selectedITHeadType = _dtITHeadType[0]['ITHeadType']?.toString().trim();
             
             if (data['SDate'] != null && data['SDate'] != "") {
                try {
@@ -187,6 +193,8 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
             }
             _pAmountController.text = '0';
             _aAmountController.text = '0';
+            String appVal = data['App']?.toString() ?? '';
+            _app = (appVal == '-') ? '' : appVal;
         } else {
             // Populate fields for Edit/View
              if (data['EntryDate'] != null) {
@@ -194,14 +202,14 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                   _selectedDate = DateFormat('dd-MM-yyyy').parse(data['EntryDate']);
                 } catch (_) {}
              }
-             _selectedFinYear = data['FinYear'];
+             _selectedFinYear = data['FinYear']?.toString().trim();
              _selectedEmpName = (data['EmpName']?.toString() ?? '').trim().replaceAll(RegExp(r'\s+'), ' ');
-             _selectedSlab = data['SlabName'];
-             _selectedITHeadType = data['ITHeadType'];
-             _selectedITHead = data['ITHead'];
+             _selectedSlab = data['SlabName']?.toString().trim();
+             _selectedITHeadType = data['ITHeadType']?.toString().trim();
+             _selectedITHead = data['ITHead']?.toString().trim();
              _pAmountController.text = data['PAmount']?.toString() ?? '0';
              _aAmountController.text = data['AAmount']?.toString() ?? '0';
-             _app = data['App'] ?? '-';
+             _app = data['App']?.toString() ?? '-';
         }
         
         _isLoadingLookups = false;
@@ -234,11 +242,11 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
       );
       if (!mounted) return;
       setState(() {
-        _dtITHead = result['dtITHead'] ?? [];
+        _dtITHead = (result['dtEarn'] as List? ?? []).map((e) => e['ITHead']?.toString().trim() ?? '').where((e) => e.isNotEmpty).toSet().toList();
         if (_dtITHead.isNotEmpty) {
            // Keep selected head if it exists in new list, else select first
-           if (_selectedITHead == null || !_dtITHead.any((element) => element['ITHead'] == _selectedITHead)) {
-               _selectedITHead = _dtITHead[0]['ITHead'];
+           if (_selectedITHead == null || !_dtITHead.contains(_selectedITHead!.trim())) {
+               _selectedITHead = _dtITHead[0];
            }
           _onITHeadChange();
         } else {
@@ -269,9 +277,9 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
       );
       if (!mounted) return;
       setState(() {
-        final dtAmount = result['dtAmount'] as List?;
-        if (dtAmount != null && dtAmount.isNotEmpty) {
-          _pAmountController.text = dtAmount[0]['PAmount']?.toString() ?? '0';
+        final dtEarn = result['dtEarn'] as List?;
+        if (dtEarn != null && dtEarn.isNotEmpty) {
+          _pAmountController.text = dtEarn[0]['Amount']?.toString() ?? '0';
         } else {
           _pAmountController.text = '0';
         }
@@ -324,8 +332,8 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
         pAmount: double.tryParse(_pAmountController.text) ?? 0.0,
         aAmount: double.tryParse(_aAmountController.text) ?? 0.0,
         file: _selectedFile,
-        actions: _action == 'Create' ? 'Add' : _action, // Map Create to Add to match API
-        editId: _editId,
+        actions: _action == 'Create' ? 'Create' : _action,
+        editId: (_editId.isEmpty || _editId == "0") ? "0" : _editId,
         app: _app,
         delIds: _delIds,
       );
@@ -354,12 +362,14 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   void _resetForm() {
       setState(() {
           _action = 'Create';
-          _editId = '';
+          _editId = '0';
           _delIds = '0';
           _selectedFile = null;
+          _selectedDate = DateTime.now();
           _aAmountController.text = '0';
           _pAmountController.text = '0';
           _selectedITHead = null;
+          _app = '';
       });
       _fetchLookups(); // Reload defaults
   }
@@ -388,24 +398,76 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
           }
           
           final d = snapshot.data!;
+          final attachments = (d['dtDet'] as List?) ?? [];
+          
+          // Debug logging
+          debugPrint('IT File Details Response: ${d.keys.toList()}');
+          debugPrint('dtDet value: ${d['dtDet']}');
+          debugPrint('Attachments count: ${attachments.length}');
+
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 UIConstants.buildDetailItem('Ticket No', d['TicketNo'] ?? ''),
                 UIConstants.buildDetailItem('Employee', d['EmpName'] ?? ''),
+                UIConstants.buildDetailItem('Entry Date', d['EntryDate'] ?? ''),
                 UIConstants.buildDetailItem('Fin Year', d['FinYear'] ?? ''),
-                UIConstants.buildDetailItem('IT Head', d['ITHead'] ?? ''),
-                UIConstants.buildDetailItem('Amount', (d['AAmount'] ?? 0).toString()),
-                UIConstants.buildDetailItem('Status', d['App'] ?? ''),
+                UIConstants.buildDetailItem('Slab', d['SlabName'] ?? ''),
+                UIConstants.buildDetailItem('Type', d['ITHeadType'] ?? ''),
+                UIConstants.buildDetailItem('Head', d['ITHead'] ?? ''),
+                UIConstants.buildDetailItem('Projected Amount', (d['PAmount'] ?? 0).toString()),
+                UIConstants.buildDetailItem('Actual Amount', (d['AAmount'] ?? 0).toString()),
+                UIConstants.buildDetailItem('Status', (d['App'] ?? '').toString().trim() == '' ? 'Pending' : d['App']),
                 UIConstants.buildDetailItem('Approved By', d['AppBy'] ?? ''),
                 UIConstants.buildDetailItem('Approved On', _formatDate(d['AppOn']?.toString())),
+                
+                if (attachments.isNotEmpty) ...[
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Text('Attachments', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary)),
+                  ),
+                  ...attachments.map((file) {
+                    final fileName = file['FilePath']?.toString().split('/').last ?? 'Attachment';
+                    return ListTile(
+                      leading: const Icon(Icons.attachment, size: 20),
+                      title: Text(fileName, style: const TextStyle(fontSize: 13, decoration: TextDecoration.underline, color: Colors.blue)),
+                      onTap: () => _downloadFile(file['FilePath']),
+                      dense: true,
+                    );
+                  }).toList(),
+                ],
               ],
             ),
           );
         },
       ),
     );
+  }
+
+  Future<void> _downloadFile(String? filePath) async {
+    if (filePath == null || filePath.isEmpty) return;
+    
+    try {
+      UIConstants.showSuccessSnackBar(context, 'Downloading file...');
+      final result = await _itFileService.getDownloadFile(filePath);
+      
+      if (result['msg'] != null && result['msg'].toString().trim().isNotEmpty) {
+          throw Exception(result['msg']);
+      }
+      
+      // Since we don't have file saving libraries, we just notify the user it's ready
+      // In a real scenario, we'd use path_provider and open_file_plus
+      UIConstants.showSuccessSnackBar(context, 'File fetched successfully. (Base64 data received)');
+      
+      // Log for debugging if needed (limited)
+      debugPrint('File data received: ${result['Base64']?.toString().substring(0, 50)}...');
+    } catch (e) {
+       if (mounted) {
+         UIConstants.showErrorSnackBar(context, 'Download failed: $e');
+       }
+    }
   }
 
   Future<void> _onDelete(ITFileRequest item) async {
@@ -422,24 +484,23 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
       );
       
       if (confirm == true) {
+           setState(() => _isLoadingLookups = true);
            try {
-               // Per old code logic, deletion is a form submit with actions='Delete'
-               // We need some minimal data. The service requires non-nullable params.
-               // We will use current values or dummy values as backend likely checks ID mainly.
-               // However, ideally we should fetch details first to fill required fields if validation strictly requires them.
-               // Let's assume ID is enough or we send empty valid strings.
+               // Fetch details first to ensure we have all required fields correctly populated
+               final details = await _itFileService.getITFileDetails(id: item.id, action: 'Delete');
                
                await _itFileService.submitITFile(
-                   entryDate: DateFormat('dd-MM-yyyy').format(DateTime.now()),
-                   slabName: item.ticketNo, // Likely ignored for delete but required by func signature
-                   finYear: item.finYear,
-                   itHead: item.itHead,
-                   itHeadType: '-',
-                   empName: item.empName,
-                   pAmount: 0,
-                   aAmount: item.amount,
+                   entryDate: details['EntryDate']?.toString() ?? DateFormat('dd-MM-yyyy').format(DateTime.now()),
+                   slabName: details['SlabName']?.toString() ?? '',
+                   finYear: details['FinYear']?.toString() ?? '',
+                   itHead: details['ITHead']?.toString() ?? '',
+                   itHeadType: details['ITHeadType']?.toString() ?? '',
+                   empName: details['EmpName']?.toString() ?? '',
+                   pAmount: double.tryParse(details['PAmount']?.toString() ?? '0') ?? 0.0,
+                   aAmount: double.tryParse(details['AAmount']?.toString() ?? '0') ?? 0.0,
                    actions: 'Delete',
                    editId: item.id,
+                   app: details['App']?.toString() ?? '-',
                );
                
                if (mounted) {
@@ -449,7 +510,10 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
            } catch (e) {
                if (mounted) {
                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+                   _fetchHistory();
                }
+           } finally {
+               if (mounted) setState(() => _isLoadingLookups = false);
            }
       }
   }
@@ -580,7 +644,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                 const SizedBox(height: 15),
                 _buildDropdownField(
                   'Head', 
-                  _dtITHead.map((e) => e['ITHead']?.toString() ?? '').toList(), 
+                  _dtITHead, 
                   _selectedITHead, 
                   (val) {
                     setState(() => _selectedITHead = val);
@@ -626,23 +690,25 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
                         ElevatedButton(
                             onPressed: _isSubmitting ? null : _submitRequest,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: _action == 'Modify' ? Colors.blue : AppColors.primary,
+                              backgroundColor: _action == 'Modify' ? const Color(0xFFF29900) : AppColors.primary,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                             child: _isSubmitting 
                               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                              : Text(_action == 'Modify' ? 'Update Request' : 'Submit Request', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                              : Text(_action == 'Modify' ? 'Update Application' : 'Submit Request', style: const TextStyle(color: Colors.white, fontSize: 16)),
                         ),
                         if (_action != 'Create') ...[
                             const SizedBox(height: 10),
-                            OutlinedButton(
+                            ElevatedButton.icon(
                                 onPressed: _cancelEdit,
-                                style: OutlinedButton.styleFrom(
+                                icon: const Icon(Icons.cancel_outlined, color: Colors.white, size: 20),
+                                label: Text(_action == 'View' ? 'Back' : 'Cancel Edit', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFE53935),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                     padding: const EdgeInsets.symmetric(vertical: 12),
                                 ),
-                                child: Text(_action == 'View' ? 'Back' : 'Cancel Edit'),
                             ),
                         ],
                     ],
@@ -772,12 +838,15 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   }
 
   Widget _buildActions(ITFileRequest item) {
-    bool canEdit = (item.app == "-" || item.app == "Pending");
+    // Trim and normalize status for checks
+    String status = item.app.trim();
+    bool canModify = (status == "-" || status == "Pending" || status == "");
+    
     return UIConstants.buildActionButtons(
         onView: () => _onView(item),
-        onEdit: () => _onEdit(item),
-        onDelete: () => _onDelete(item),
-        editTooltip: canEdit ? 'Modify' : 'Revise',
+        onEdit: canModify ? () => _onEdit(item) : null,
+        onDelete: canModify ? () => _onDelete(item) : null,
+        editTooltip: canModify ? 'Modify' : 'View (Approved)',
     );
   }
 
@@ -967,9 +1036,10 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               isExpanded: true,
-              value: value,
+              // Safety check: ensure value exists in items and handle duplicates by taking first
+              value: (value != null && items.contains(value.trim())) ? value.trim() : null,
               hint: const Text('Select option'),
-              items: items.map((e) => DropdownMenuItem(
+              items: items.toSet().map((e) => DropdownMenuItem(
                   value: e, 
                   child: Text(
                       e, 

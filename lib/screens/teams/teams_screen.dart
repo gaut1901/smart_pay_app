@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:smartpay_flutter/widgets/main_drawer.dart';
 import '../../core/constants.dart';
 import '../../data/models/team_model.dart';
 import '../../data/services/team_service.dart';
@@ -60,6 +61,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
         centerTitle: true,
         elevation: 0,
       ),
+      drawer: const MainDrawer(),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
