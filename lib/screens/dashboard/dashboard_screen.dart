@@ -258,15 +258,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Navigator.pushNamed(context, '/shift');
             },
           ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.lock_outline,
-            title: 'Change Password',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/change_password');
-            },
-          ),
+          // _buildDrawerItem(
+          //   context,
+          //   icon: Icons.lock_outline,
+          //   title: 'Change Password',
+          //   onTap: () {
+          //     Navigator.pop(context);
+          //     Navigator.pushNamed(context, '/change_password');
+          //   },
+          // ),
           const SizedBox(height: 20),
           const Divider(),
           _buildDrawerItem(

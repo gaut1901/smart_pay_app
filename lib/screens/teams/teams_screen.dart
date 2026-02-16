@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/constants.dart';
 import '../../data/models/team_model.dart';
 import '../../data/services/team_service.dart';
 import '../../data/services/auth_service.dart';
-import '../../widgets/custom_app_header.dart';
 
 class TeamsScreen extends StatefulWidget {
   const TeamsScreen({super.key});
@@ -47,18 +47,38 @@ class _TeamsScreenState extends State<TeamsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = AuthService.currentUser;
-
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: CustomAppHeader(
-        title: 'Team Members',
-        user: user,
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: SvgPicture.asset(
+          'assets/images/logo.svg',
+          height: 30,
+          color: Colors.white,
+        ),
+        centerTitle: true,
+        elevation: 0,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Team Members',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -88,6 +108,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
                         },
                       ),
                     ),
+          ),
+        ],
+      ),
     );
   }
 
