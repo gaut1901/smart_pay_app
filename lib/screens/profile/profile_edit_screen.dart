@@ -979,8 +979,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       return _buildDetailCard(
         title: edu.degree ?? 'Education',
         details: [
-          edu.institution ?? "",
-          edu.passDate ?? "",
+          if (edu.degreeType != null && edu.degreeType!.isNotEmpty) 
+            'Degree Type: ${edu.degreeType}',
+          if (edu.subject != null && edu.subject!.isNotEmpty) 
+            'Field of Study: ${edu.subject}',
+          if (edu.institution != null && edu.institution!.isNotEmpty)
+            edu.institution!,
+          if (edu.passDate != null && edu.passDate!.isNotEmpty)
+            edu.passDate!,
         ],
         onEdit: () => _editEducation(index),
         onDelete: () => _removeEducation(index),

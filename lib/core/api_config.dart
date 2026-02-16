@@ -28,4 +28,8 @@ class ApiConfig {
   static const String requestRights = "api/attn/GetESSReqRights";
   static const String changePassDisplay = "api/empchangepass/display";
   static const String changePassSubmit = "api/empchangepass/submit";
+  static const String familyPhotoUpload = "api/essemp/FamilyPhotoUpload";
+  static const String eduPhotoUpload = "api/essemp/EduPhotoUpload";
+  static const String expPhotoUpload = "api/essemp/ExpPhotoUpload";
+  static const String insPhotoUpload = "api/essemp/InsPhotoUpload";
 }
