@@ -39,6 +39,8 @@ dependencies:
   webview_flutter: ^4.13.1
   file_picker: 8.3.7
   syncfusion_flutter_pdfviewer: ^32.2.4
+  printing: ^5.14.2
+  flutter_html: ^3.0.0-beta.2
 
 dev_dependencies:
   flutter_test:

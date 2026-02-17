@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../core/api_config.dart';
 import '../models/user_model.dart';
+import '../models/menu_model.dart';
 
 class AuthService {
   static User? _currentUser;
@@ -16,6 +17,10 @@ class AuthService {
   static String _memberName = "";
   static String get memberName => _memberName;
   static set memberName(String value) => _memberName = value;
+
+  // Cache menus to avoid re-fetching
+  static List<MenuModel> _cachedMenus = [];
+  static List<MenuModel> get cachedMenus => _cachedMenus;
 
   Future<User?> login(String username, String password) async {
     final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.login}');
@@ -36,6 +41,8 @@ class AuthService {
         final responseData = jsonDecode(data['response']);
         if (responseData['success'] == "OK") {
           _currentUser = User.fromJson(responseData);
+          // Clear cache on new login
+          _cachedMenus = [];
           return _currentUser;
         } else {
           throw Exception(responseData['error'] ?? 'Login failed');
@@ -50,8 +57,41 @@ class AuthService {
     }
   }
 
+  Future<List<MenuModel>> getMenu() async {
+    if (_currentUser == null) throw Exception('User not logged in');
+    
+    // Return cached if available
+    if (_cachedMenus.isNotEmpty) return _cachedMenus;
+
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.team}');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: _currentUser!.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final responseData = jsonDecode(data['response']);
+        
+        final menuList = responseData['menudt1'] as List?;
+        if (menuList == null) return [];
+        
+        _cachedMenus = menuList.map((e) => MenuModel.fromJson(e)).toList();
+        return _cachedMenus;
+      } else {
+        throw Exception('Failed to load menu: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error fetching menu: $e');
+      return []; // Return empty list on error to allow app to function
+    }
+  }
+
   void logout() {
     _currentUser = null;
     _memberEmpCode = "0";
+    _cachedMenus = [];
   }
 }

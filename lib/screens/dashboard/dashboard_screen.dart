@@ -313,55 +313,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildProfileSection(BuildContext context, Map<String, dynamic>? emp) {
     if (emp == null) return const SizedBox.shrink();
     
-    return InkWell(
-      onTap: () => Navigator.pushNamed(context, '/profile'),
-      child: Container(
-        margin: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF2EADC), // Light gold/cream background
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: AppColors.accent, // Gold header
-                borderRadius: BorderRadius.only(topLeft: Radius.circular(4), topRight: Radius.circular(4)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(emp['EmpName'] ?? '', style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizePageTitle, fontWeight: FontWeight.bold)),
-                  Text('${emp['DesName'] ?? ''} | ${emp['DeptName'] ?? ''}', style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizeSmall)),
-                ],
-              ),
+    return Container(
+      margin: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2EADC), // Light gold/cream background
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: AppColors.accent, // Gold header
+              borderRadius: BorderRadius.only(topLeft: Radius.circular(4), topRight: Radius.circular(4)),
             ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 2.8,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                children: [
-                  _buildProfileInfoItem('EmpCode', (emp['EmpCode'] ?? emp['Empcode'])?.toString() ?? ''),
-                  _buildProfileInfoItem('LocName', emp['LocName'] ?? ''),
-                  _buildProfileInfoItem('Report Person Name', emp['Report_Person_Name'] ?? ''),
-                  _buildProfileInfoItem('PayGroup', emp['PayGroup'] ?? ''),
-                  _buildProfileInfoItem('MobileNo', emp['MobileNo'] ?? ''),
-                  _buildProfileInfoItem('EMail', (emp['Office_Mail'] == null || emp['Office_Mail'] == 'NONE') ? (emp['Personal_Mail'] ?? '') : emp['Office_Mail']),
-                  _buildProfileInfoItem('Date of Joining', emp['DOJ'] ?? ''),
-                  _buildProfileInfoItem('Date of Birth', emp['DOB'] ?? ''),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(emp['EmpName'] ?? '', style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizePageTitle, fontWeight: FontWeight.bold)),
+                Text('${emp['DesName'] ?? ''} | ${emp['DeptName'] ?? ''}', style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizeSmall)),
+              ],
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: 2.8,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              children: [
+                _buildProfileInfoItem('EmpCode', (emp['EmpCode'] ?? emp['Empcode'])?.toString() ?? ''),
+                _buildProfileInfoItem('LocName', emp['LocName'] ?? ''),
+                _buildProfileInfoItem('Report Person Name', emp['Report_Person_Name'] ?? ''),
+                _buildProfileInfoItem('PayGroup', emp['PayGroup'] ?? ''),
+                _buildProfileInfoItem('MobileNo', emp['MobileNo'] ?? ''),
+                _buildProfileInfoItem('EMail', (emp['Office_Mail'] == null || emp['Office_Mail'] == 'NONE') ? (emp['Personal_Mail'] ?? '') : emp['Office_Mail']),
+                _buildProfileInfoItem('Date of Joining', emp['DOJ'] ?? ''),
+                _buildProfileInfoItem('Date of Birth', emp['DOB'] ?? ''),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
