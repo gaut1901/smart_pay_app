@@ -514,8 +514,10 @@ class _AssetRequestScreenState extends State<AssetRequestScreen> with SingleTick
   }
 
   Widget _buildHistoryCards() {
-    int displayCount = _filteredHistory.length > _rowsPerPage ? _rowsPerPage : _filteredHistory.length;
-    List<AssetRequestModel> displayedItems = _filteredHistory.take(displayCount).toList();
+    int start = _currentPage * _rowsPerPage;
+    int end = start + _rowsPerPage;
+    if (end > _filteredHistory.length) end = _filteredHistory.length;
+    List<AssetRequestModel> displayedItems = _filteredHistory.sublist(start, end);
 
     return Column(
       children: displayedItems.map((item) => _buildHistoryCard(item)).toList(),
@@ -626,7 +628,10 @@ class _AssetRequestScreenState extends State<AssetRequestScreen> with SingleTick
             value: _rowsPerPage,
             items: [10, 25, 50, 100].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
             onChanged: (val) {
-                if (val != null) setState(() => _rowsPerPage = val);
+                if (val != null) setState(() {
+                  _rowsPerPage = val;
+                  _currentPage = 0;
+                });
             },
             underline: Container(), // Remove underline
           ),
@@ -658,17 +663,27 @@ class _AssetRequestScreenState extends State<AssetRequestScreen> with SingleTick
   }
 
   Widget _buildPaginationFooter(int count) {
+    int start = _currentPage * _rowsPerPage;
+    int end = start + _rowsPerPage;
+    if (end > count) end = count;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Showing 1 to $count of $count entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-          const Row(
+          Text('Showing ${count == 0 ? 0 : start + 1} to $end of $count entries', style: UIConstants.smallTextStyle.copyWith(color: Colors.grey.shade600)),
+          Row(
             children: [
-              Icon(Icons.chevron_left, color: Colors.grey),
-              SizedBox(width: 16),
-              Icon(Icons.chevron_right, color: Colors.grey),
+              IconButton(
+                onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
+                icon: Icon(Icons.chevron_left, color: _currentPage > 0 ? Colors.black : Colors.grey),
+              ),
+              const SizedBox(width: 16),
+              IconButton(
+                onPressed: end < count ? () => setState(() => _currentPage++) : null, 
+                icon: Icon(Icons.chevron_right, color: end < count ? Colors.black : Colors.grey),
+              ),
             ],
           )
         ],

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:smartpay_flutter/core/constants.dart';
 import 'package:smartpay_flutter/core/ui_constants.dart';
+import 'package:smartpay_flutter/core/widgets/date_picker_field.dart';
 import 'package:smartpay_flutter/data/services/it_file_service.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
@@ -53,6 +54,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   // Table & Search State
   final TextEditingController _searchController = TextEditingController();
   int _rowsPerPage = 10;
+  int _currentPage = 0;
   List<ITFileRequest> _dateFilteredHistory = [];
   List<ITFileRequest> _filteredHistory = [];
   DateTime _historyFromDate = DateTime.now();
@@ -73,6 +75,7 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
 
   void _onSearchChanged() {
     setState(() {
+      _currentPage = 0;
       if (_searchController.text.isEmpty) {
         _filteredHistory = List.from(_dateFilteredHistory);
       } else {
@@ -848,8 +851,10 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   }
 
   Widget _buildHistoryCards() {
-    int displayCount = _filteredHistory.length > _rowsPerPage ? _rowsPerPage : _filteredHistory.length;
-    List<ITFileRequest> displayedItems = _filteredHistory.take(displayCount).toList();
+    int start = _currentPage * _rowsPerPage;
+    int end = start + _rowsPerPage;
+    if (end > _filteredHistory.length) end = _filteredHistory.length;
+    List<ITFileRequest> displayedItems = _filteredHistory.sublist(start, end);
 
     return Column(
       children: displayedItems.map((item) => _buildHistoryCard(item)).toList(),
@@ -943,63 +948,12 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   }
 
   Widget _buildHistoryDateFilterRow() {
-    return Container(
-      color: Colors.white,
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: () => _selectHistoryDate(true),
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'From Date',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  suffixIcon: Icon(Icons.calendar_today, size: 18),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                child: Text(
-                  DateFormat('dd-MM-yyyy').format(_historyFromDate),
-                  style: TextStyle(fontSize: UIConstants.fontSizeBody),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: InkWell(
-              onTap: () => _selectHistoryDate(false),
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'To Date',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  suffixIcon: Icon(Icons.calendar_today, size: 18),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                child: Text(
-                  DateFormat('dd-MM-yyyy').format(_historyToDate),
-                  style: TextStyle(fontSize: UIConstants.fontSizeBody),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFE53935), // Red color
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.search, color: Colors.white),
-              onPressed: _applyHistoryDateFilter,
-              tooltip: 'Filter',
-            ),
-          ),
-        ],
-      ),
+    return DateFilterRow(
+      fromDate: _historyFromDate,
+      toDate: _historyToDate,
+      onFromDateTap: () => _selectHistoryDate(true),
+      onToDateTap: () => _selectHistoryDate(false),
+      onSearch: _applyHistoryDateFilter,
     );
   }
 
@@ -1009,12 +963,15 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
       child: Row(
         children: [
           // Row per page
-          const Text('Rows: '),
+          Text('Rows: ', style: UIConstants.smallTextStyle),
           DropdownButton<int>(
             value: _rowsPerPage,
             items: [10, 25, 50, 100].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
             onChanged: (val) {
-                if (val != null) setState(() => _rowsPerPage = val);
+                if (val != null) setState(() {
+                  _rowsPerPage = val;
+                  _currentPage = 0;
+                });
             },
             underline: Container(), // Remove underline
           ),
@@ -1046,17 +1003,27 @@ class _ITFileScreenState extends State<ITFileScreen> with SingleTickerProviderSt
   }
 
   Widget _buildPaginationFooter(int count) {
+    int start = _currentPage * _rowsPerPage;
+    int end = start + _rowsPerPage;
+    if (end > count) end = count;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Showing 1 to $count of $count entries', style: UIConstants.smallTextStyle.copyWith(color: Colors.grey.shade600)),
-          const Row(
+          Text('Showing ${count == 0 ? 0 : start + 1} to $end of $count entries', style: UIConstants.smallTextStyle.copyWith(color: Colors.grey.shade600)),
+          Row(
             children: [
-              Icon(Icons.chevron_left, color: Colors.grey),
-              SizedBox(width: 16),
-              Icon(Icons.chevron_right, color: Colors.grey),
+              IconButton(
+                onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
+                icon: Icon(Icons.chevron_left, color: _currentPage > 0 ? Colors.black : Colors.grey),
+              ),
+              const SizedBox(width: 16),
+              IconButton(
+                onPressed: end < count ? () => setState(() => _currentPage++) : null, 
+                icon: Icon(Icons.chevron_right, color: end < count ? Colors.black : Colors.grey),
+              ),
             ],
           )
         ],

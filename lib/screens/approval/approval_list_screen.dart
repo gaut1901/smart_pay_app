@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../data/services/approval_service.dart';
 import '../../core/constants.dart';
+import '../../core/ui_constants.dart';
 import '../../core/widgets/date_picker_field.dart';
 import 'approval_detail_screen.dart';
 
@@ -392,24 +393,34 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
     required int currentPage,
     required ValueChanged<int> onPageChanged,
   }) {
-    final totalPages = (totalItems / rowsPerPage).ceil();
-    if (totalPages <= 1) return const SizedBox.shrink();
+    int start = currentPage * rowsPerPage;
+    int end = start + rowsPerPage;
+    if (end > totalItems) end = totalItems;
+    
+    // Always show if there are items, to maintain layout consistency
+    if (totalItems == 0) return const SizedBox.shrink();
 
     return Container(
-      padding: const EdgeInsets.all(8),
-      color: Colors.grey.shade50,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Colors.white,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: currentPage > 0 ? () => onPageChanged(currentPage - 1) : null,
-          ),
-          Text('Page ${currentPage + 1} of $totalPages'),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: currentPage < totalPages - 1 ? () => onPageChanged(currentPage + 1) : null,
-          ),
+          Text('Showing ${totalItems == 0 ? 0 : start + 1} to $end of $totalItems entries', 
+               style: UIConstants.smallTextStyle.copyWith(color: Colors.grey.shade600)),
+          Row(
+            children: [
+              IconButton(
+                onPressed: currentPage > 0 ? () => onPageChanged(currentPage - 1) : null,
+                icon: Icon(Icons.chevron_left, color: currentPage > 0 ? Colors.black : Colors.grey),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: end < totalItems ? () => onPageChanged(currentPage + 1) : null, 
+                icon: Icon(Icons.chevron_right, color: end < totalItems ? Colors.black : Colors.grey),
+              ),
+            ],
+          )
         ],
       ),
     );

@@ -24,6 +24,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   // Search & Pagination State
   final TextEditingController _searchController = TextEditingController();
   int _rowsPerPage = 10;
+  int _currentPage = 1;
   List<AttendanceRecord> _filteredRecords = [];
 
   @override
@@ -35,6 +36,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   void _onSearchChanged() {
     setState(() {
+      _currentPage = 1; // Reset to first page on search
       if (_historyResponse == null) return;
       
       if (_searchController.text.isEmpty) {
@@ -77,7 +79,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _historyResponse = data;
         _filteredRecords = data.attendanceRecords;
         _isLoading = false;
-        _onSearchChanged();
+        _onSearchChanged(); // Re-apply search/reset
       });
     } catch (e) {
       setState(() {
@@ -235,7 +237,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             value: _rowsPerPage,
             items: [10, 25, 50, 100].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
             onChanged: (val) {
-                if (val != null) setState(() => _rowsPerPage = val);
+                if (val != null) {
+                  setState(() {
+                    _rowsPerPage = val;
+                    _currentPage = 1; // Reset page when rows per page changes
+                  });
+                }
             },
             underline: Container(), // Remove underline
           ),
@@ -266,8 +273,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildAttendanceCards() {
-    int displayCount = _filteredRecords.length > _rowsPerPage ? _rowsPerPage : _filteredRecords.length;
-    List<AttendanceRecord> displayedItems = _filteredRecords.take(displayCount).toList();
+    int startIndex = (_currentPage - 1) * _rowsPerPage;
+    int endIndex = startIndex + _rowsPerPage;
+    if (endIndex > _filteredRecords.length) endIndex = _filteredRecords.length;
+    
+    // If start index is out of bounds (can happen if list shrinks drastically), reset to page 1
+    if (startIndex >= _filteredRecords.length && _filteredRecords.isNotEmpty) {
+      startIndex = 0;
+      endIndex = _rowsPerPage < _filteredRecords.length ? _rowsPerPage : _filteredRecords.length;
+      // We should ideally update state but in build it's tricky. 
+      // State reset handled in search change.
+    }
+    
+    if (_filteredRecords.isEmpty) return const SizedBox.shrink();
+
+    List<AttendanceRecord> displayedItems = _filteredRecords.sublist(startIndex, endIndex);
 
     return Column(
       children: displayedItems.map((item) => _buildAttendanceCard(item)).toList(),
@@ -330,18 +350,39 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-  Widget _buildPaginationFooter(int count) {
+  Widget _buildPaginationFooter(int totalCount) {
+    int totalPages = (totalCount / _rowsPerPage).ceil();
+    if (totalPages == 0) totalPages = 1;
+    
+    int startIndex = (_currentPage - 1) * _rowsPerPage + 1;
+    int endIndex = startIndex + _rowsPerPage - 1;
+    if (endIndex > totalCount) endIndex = totalCount;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Showing 1 to $count of $count entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-          const Row(
+          Text('Showing $startIndex to $endIndex of $totalCount entries', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Row(
             children: [
-              Icon(Icons.chevron_left, color: Colors.grey),
-              SizedBox(width: 16),
-              Icon(Icons.chevron_right, color: Colors.grey),
+              IconButton(
+                icon: Icon(Icons.chevron_left, color: _currentPage > 1 ? Colors.black : Colors.grey),
+                onPressed: _currentPage > 1 ? () {
+                  setState(() {
+                    _currentPage--;
+                  });
+                } : null,
+              ),
+              const SizedBox(width: 8), // Reduced spacing
+              IconButton(
+                icon: Icon(Icons.chevron_right, color: _currentPage < totalPages ? Colors.black : Colors.grey),
+                onPressed: _currentPage < totalPages ? () {
+                  setState(() {
+                    _currentPage++;
+                  });
+                } : null,
+              ),
             ],
           )
         ],

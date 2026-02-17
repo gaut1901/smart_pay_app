@@ -70,6 +70,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   DateTime _historyFromDate = DateTime.now();
   DateTime _historyToDate = DateTime.now();
   int _rowsPerPage = 10;
+  int _currentPage = 0;
   final List<int> _rowsPerPageOptions = [10, 25, 50, 100];
   List<String> _leaveHeaders = [];
   bool _isLoadingHeaders = true;
@@ -121,6 +122,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
 
   void _onHistorySearchChanged() {
     setState(() {
+      _currentPage = 0;
       String query = _historySearchController.text.toLowerCase();
       if (query.isEmpty) {
         _filteredHistory = List.from(_dateFilteredHistory);
@@ -943,8 +945,10 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
 
   Widget _buildHistoryCards() {
     // Basic pagination
-    int displayCount = _filteredHistory.length > _rowsPerPage ? _rowsPerPage : _filteredHistory.length;
-    List<LeaveRequest> displayedItems = _filteredHistory.take(displayCount).toList();
+    int start = _currentPage * _rowsPerPage;
+    int end = start + _rowsPerPage;
+    if (end > _filteredHistory.length) end = _filteredHistory.length;
+    List<LeaveRequest> displayedItems = _filteredHistory.sublist(start, end);
 
     return Column(
       children: displayedItems.map((item) => _buildHistoryCard(item)).toList(),
@@ -1528,7 +1532,10 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
             value: _rowsPerPage,
             items: _rowsPerPageOptions.map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
             onChanged: (val) {
-                if (val != null) setState(() => _rowsPerPage = val);
+                if (val != null) setState(() {
+                  _rowsPerPage = val;
+                  _currentPage = 0;
+                });
             },
             underline: Container(), // Remove underline
           ),
@@ -1560,24 +1567,27 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   }
 
   Widget _buildPaginationFooter(int count) {
-    int displayCount = count > _rowsPerPage ? _rowsPerPage : count;
+    int start = _currentPage * _rowsPerPage;
+    int end = start + _rowsPerPage;
+    if (end > count) end = count;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Showing $displayCount of $count entries', 
+          Text('Showing ${count == 0 ? 0 : start + 1} to $end of $count entries', 
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
           Row(
             children: [
               IconButton(
-                onPressed: null, // Placeholder for real pagination logic
-                icon: const Icon(Icons.chevron_left, color: Colors.grey),
+                onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
+                icon: Icon(Icons.chevron_left, color: _currentPage > 0 ? Colors.black : Colors.grey),
               ),
               const SizedBox(width: 8),
               IconButton(
-                onPressed: null, 
-                icon: const Icon(Icons.chevron_right, color: Colors.grey),
+                onPressed: end < count ? () => setState(() => _currentPage++) : null, 
+                icon: Icon(Icons.chevron_right, color: end < count ? Colors.black : Colors.grey),
               ),
             ],
           )
