@@ -17,13 +17,16 @@ class TeamsScreen extends StatefulWidget {
 class _TeamsScreenState extends State<TeamsScreen> {
   final TeamService _teamService = TeamService();
   List<TeamMember> _teamMembers = [];
+  List<TeamMember> _filteredTeamMembers = [];
   bool _isLoading = true;
   String? _error;
+  TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadTeamMembers();
+    _searchController.addListener(_onSearchChanged);
   }
 
   Future<void> _loadTeamMembers() async {
@@ -36,14 +39,45 @@ class _TeamsScreenState extends State<TeamsScreen> {
       final members = await _teamService.getTeamMembers();
       setState(() {
         _teamMembers = members;
+        _filteredTeamMembers = List.from(members); // Initialize filtered list
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
         _error = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
+        _filteredTeamMembers = []; // Clear filtered list on error
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _filterTeamMembers(_searchController.text);
+  }
+
+  void _filterTeamMembers(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        _filteredTeamMembers = List.from(_teamMembers);
+      });
+      return;
+    }
+
+    setState(() {
+      _filteredTeamMembers = _teamMembers.where((member) {
+        final lowerQuery = query.toLowerCase();
+        return member.displayName.toLowerCase().contains(lowerQuery) ||
+               member.empName.toLowerCase().contains(lowerQuery) ||
+               member.empCode.toLowerCase().contains(lowerQuery) ||
+               member.ticketNo.toLowerCase().contains(lowerQuery);
+      }).toList();
+    });
   }
 
   @override
@@ -65,14 +99,31 @@ class _TeamsScreenState extends State<TeamsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
               'Team Members',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by name or employee number...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               ),
             ),
           ),
@@ -87,7 +138,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
                       Text('Error: $_error', style: const TextStyle(color: Colors.red)),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: _loadTeamMembers,
+                        onPressed: () {
+                          _searchController.clear(); // Clear search when retrying
+                          _loadTeamMembers();
+                        },
                         child: const Text('Retry'),
                       ),
                     ],
@@ -97,19 +151,26 @@ class _TeamsScreenState extends State<TeamsScreen> {
                   ? const Center(
                       child: Text('No team members found'),
                     )
-                  : RefreshIndicator(
-                      onRefresh: _loadTeamMembers,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _teamMembers.length,
-                        itemBuilder: (context, index) {
-                          final member = _teamMembers[index];
-                          final color = AppColors.chartColors[index % AppColors.chartColors.length];
-                          
-                          return _buildTeamMemberCard(member, color);
-                        },
-                      ),
-                    ),
+                  : _filteredTeamMembers.isEmpty && _searchController.text.isNotEmpty
+                      ? const Center(
+                          child: Text('No team members found matching your search'),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: () async {
+                            _searchController.clear(); // Clear search on refresh
+                            await _loadTeamMembers();
+                          },
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(12),
+                            itemCount: _filteredTeamMembers.length,
+                            itemBuilder: (context, index) {
+                              final member = _filteredTeamMembers[index];
+                              final color = AppColors.chartColors[index % AppColors.chartColors.length];
+                              
+                              return _buildTeamMemberCard(member, color);
+                            },
+                          ),
+                        ),
           ),
         ],
       ),
