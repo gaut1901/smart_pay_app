@@ -18,7 +18,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  Map<DateTime, ShiftRecord> _shifts = {};
+  Map<DateTime, List<ShiftRecord>> _shifts = {};
   bool _isLoading = true;
   String? _error;
 
@@ -37,7 +37,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
 
     try {
       final response = await _shiftService.getShiftSchedule();
-      final Map<DateTime, ShiftRecord> shiftMap = {};
+      final Map<DateTime, List<ShiftRecord>> shiftMap = {};
       
       for (var shift in response.shifts) {
         try {
@@ -51,7 +51,11 @@ class _ShiftScreenState extends State<ShiftScreen> {
             );
             // Normalize to midnight for comparison
             final normalizedDate = DateTime(date.year, date.month, date.day);
-            shiftMap[normalizedDate] = shift;
+            
+            if (!shiftMap.containsKey(normalizedDate)) {
+              shiftMap[normalizedDate] = [];
+            }
+            shiftMap[normalizedDate]!.add(shift);
           }
         } catch (e) {
           // Skip invalid dates
@@ -72,16 +76,40 @@ class _ShiftScreenState extends State<ShiftScreen> {
 
   List<ShiftRecord> _getEventsForDay(DateTime day) {
     final normalizedDay = DateTime(day.year, day.month, day.day);
-    if (_shifts.containsKey(normalizedDay)) {
-      return [_shifts[normalizedDay]!];
-    }
-    return [];
+    return _shifts[normalizedDay] ?? [];
   }
 
   Color _hexToColor(String hex) {
+    final colorMap = {
+      'BROWN': Colors.brown,
+      'RED': Colors.red,
+      'BLUE': Colors.blue,
+      'GREEN': Colors.green,
+      'YELLOW': Colors.yellow,
+      'ORANGE': Colors.orange,
+      'PURPLE': Colors.purple,
+      'PINK': Colors.pink,
+      'GREY': Colors.grey,
+      'BLACK': Colors.black,
+      'WHITE': Colors.white,
+      'CYAN': Colors.cyan,
+      'TEAL': Colors.teal,
+      'INDIGO': Colors.indigo,
+      'LIME': Colors.lime,
+      'AMBER': Colors.amber,
+    };
+
+    String upperHex = hex.toUpperCase().trim();
+    if (colorMap.containsKey(upperHex)) {
+      return colorMap[upperHex]!;
+    }
+
     try {
       if (hex.startsWith('#')) {
         hex = hex.substring(1);
+      }
+      if (hex.length == 3) {
+        hex = hex.split('').map((e) => e + e).join('');
       }
       if (hex.length == 6) {
         hex = 'FF$hex';
@@ -183,18 +211,42 @@ class _ShiftScreenState extends State<ShiftScreen> {
           titleTextStyle: TextStyle(fontSize: UIConstants.fontSizePageTitle, fontWeight: FontWeight.bold, color: AppColors.primary),
         ),
         calendarBuilders: CalendarBuilders(
+          defaultBuilder: (context, day, focusedDay) {
+            return _buildCalendarCell(day, isToday: false, isSelected: false);
+          },
+          todayBuilder: (context, day, focusedDay) {
+            return _buildCalendarCell(day, isToday: true, isSelected: false);
+          },
+          selectedBuilder: (context, day, focusedDay) {
+            return _buildCalendarCell(day, isToday: false, isSelected: true);
+          },
           markerBuilder: (context, date, events) {
-            if (events.isNotEmpty) {
-              final shift = events.first as ShiftRecord;
+            if (events != null && events.length > 0) {
+              final shifts = events.cast<ShiftRecord>();
+              // Use the first shift's color for all markers on this day for consistency
+              final dayColor = _hexToColor(shifts[0].colorCode);
               return Positioned(
-                bottom: 1,
-                child: Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _hexToColor(shift.colorCode),
-                  ),
+                bottom: 2,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ...shifts.take(3).map((shift) {
+                      return Container(
+                        width: 7,
+                        height: 7,
+                        margin: const EdgeInsets.symmetric(horizontal: 1.0),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: dayColor,
+                        ),
+                      );
+                    }),
+                    if (shifts.length > 3)
+                      Text(
+                        '+',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: dayColor),
+                      ),
+                  ],
                 ),
               );
             }
@@ -205,8 +257,49 @@ class _ShiftScreenState extends State<ShiftScreen> {
     );
   }
 
+  Widget _buildCalendarCell(DateTime day, {bool isToday = false, bool isSelected = false}) {
+    if (isSelected) {
+      return Container(
+        margin: const EdgeInsets.all(4.0),
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(
+          color: AppColors.primary,
+          shape: BoxShape.circle,
+        ),
+        child: Text(
+          '${day.day}',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      );
+    }
+
+    if (isToday) {
+      return Container(
+        margin: const EdgeInsets.all(4.0),
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(
+          color: AppColors.primaryLight,
+          shape: BoxShape.circle,
+        ),
+        child: Text(
+          '${day.day}',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.all(4.0),
+      alignment: Alignment.center,
+      child: Text(
+        '${day.day}',
+        style: const TextStyle(color: AppColors.textDark),
+      ),
+    );
+  }
+
   Widget _buildShiftDetails() {
-    final selectedShift = _selectedDay != null ? _getEventsForDay(_selectedDay!) : [];
+    final selectedShifts = _selectedDay != null ? _getEventsForDay(_selectedDay!) : <ShiftRecord>[];
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -222,57 +315,74 @@ class _ShiftScreenState extends State<ShiftScreen> {
                 _selectedDay != null ? DateFormat('EEEE, MMM d, yyyy').format(_selectedDay!) : 'Select a date',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: UIConstants.fontSizeSectionHeader, color: AppColors.primary),
               ),
-              if (selectedShift.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _hexToColor(selectedShift.first.colorCode),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'Shift Assigned',
-                    style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizeSmall, fontWeight: FontWeight.bold),
-                  ),
-                ),
             ],
           ),
           const Divider(height: 30),
-          if (selectedShift.isNotEmpty)
-            Row(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: _hexToColor(selectedShift.first.colorCode).withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.work_history,
-                    color: _hexToColor(selectedShift.first.colorCode),
-                  ),
-                ),
-                const SizedBox(width: 15),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      selectedShift.first.shiftName,
-                      style: TextStyle(fontSize: UIConstants.fontSizePageTitle, fontWeight: FontWeight.bold, color: AppColors.textDark),
+          if (selectedShifts.length > 0)
+            Expanded(
+              child: ListView.separated(
+                itemCount: selectedShifts.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final shift = selectedShifts[index];
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _hexToColor(shift.colorCode).withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _hexToColor(shift.colorCode).withValues(alpha: 0.2)),
                     ),
-                    Text(
-                      'Shift Timing',
-                      style: TextStyle(color: AppColors.textGray, fontSize: UIConstants.fontSizeBody),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _hexToColor(shift.colorCode).withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.work_history,
+                            color: _hexToColor(shift.colorCode),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                shift.shiftName,
+                                style: TextStyle(
+                                  fontSize: UIConstants.fontSizeSectionHeader, 
+                                  fontWeight: FontWeight.bold, 
+                                  color: _hexToColor(shift.colorCode),
+                                ),
+                              ),
+                              Text(
+                                'Shift Assigned',
+                                style: TextStyle(color: AppColors.textGray.withValues(alpha: 0.7), fontSize: UIConstants.fontSizeSmall),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: _hexToColor(shift.colorCode).withValues(alpha: 0.5),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ],
+                  );
+                },
+              ),
             )
           else
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 40),
+            const Expanded(
+              child: Center(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.event_busy, size: 40, color: AppColors.textGray),
                     SizedBox(height: 10),

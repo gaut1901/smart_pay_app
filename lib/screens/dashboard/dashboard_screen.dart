@@ -5,6 +5,9 @@ import '../../core/constants.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/dashboard_service.dart';
 import '../../data/services/attendance_service.dart';
+import '../approval/approval_list_screen.dart';
+import '../approval/approval_detail_screen.dart';
+import '../approval/shift_deviation_approval_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -715,10 +718,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // Maps the ReqType string from the API to the approval type used by ApprovalListScreen.
+  static const _reqTypeToApprovalType = {
+    'Leave': 'Leave',
+    'Leave Compensation': 'LeaveComp',
+    'Advance': 'Advance',
+    'Advance Adjustment': 'AdvAdj',
+    'Shift Deviation': 'ShiftDev',
+    'Permission': 'Permission',
+  };
+
+  // Returns the icon and colour for a given approval ReqType.
+  Map<String, dynamic> _approvalMeta(String reqType) {
+    switch (reqType) {
+      case 'Leave':
+        return {'icon': Icons.calendar_today, 'color': const Color(0xFF00C853)};
+      case 'Leave Compensation':
+        return {'icon': Icons.history, 'color': const Color(0xFF2196F3)};
+      case 'Advance':
+        return {'icon': Icons.monetization_on_outlined, 'color': const Color(0xFFFF4081)};
+      case 'Advance Adjustment':
+        return {'icon': Icons.calculate_outlined, 'color': const Color(0xFF3B7080)};
+      case 'Shift Deviation':
+        return {'icon': Icons.swap_horiz, 'color': const Color(0xFFD50000)};
+      case 'Permission':
+        return {'icon': Icons.access_time, 'color': const Color(0xFFF26522)};
+      default:
+        return {'icon': Icons.pending_actions, 'color': AppColors.primary};
+    }
+  }
+
+  void _navigateToApproval(String reqType, String title, {String? id}) {
+    final type = _reqTypeToApprovalType[reqType];
+    
+    if (id != null && type != null) {
+      if (type == 'ShiftDev') {
+        // ShiftDev has its own specialized display screen in this app's existing structure
+        // But ApprovalDetailScreen also handles ShiftDeviation. 
+        // Based on the existing _navigateToApproval logic, let's stick to the specialized one if needed, 
+        // but ShiftDeviationApprovalScreen doesn't take an ID in its constructor (it's a list).
+        // So we should navigate to Detail if we have an ID.
+      }
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ApprovalDetailScreen(type: type, id: id, title: title),
+        ),
+      ).then((refresh) {
+        if (refresh == true) _loadDashboardData();
+      });
+      return;
+    }
+
+    if (type == 'ShiftDev') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ShiftDeviationApprovalScreen(type: type!, title: title),
+        ),
+      );
+    } else if (type != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ApprovalListScreen(type: type, title: title),
+        ),
+      );
+    } else {
+      Navigator.pushNamed(context, '/approval');
+    }
+  }
+
   Widget _buildTeamAndApprovalsSection(Map<String, dynamic>? data) {
     final team = (data?['dtTeam'] as List?) ?? [];
     final limitedTeam = team.take(5).toList();
-    final approvals = (data?['dtApproval'] as List?) ?? [];
+    // Show only the most recent 5 approval records
+    final allApprovals = (data?['dtApproval'] as List?) ?? [];
+    final approvals = allApprovals.take(5).toList();
 
     return Column(
       children: [
@@ -729,7 +806,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: List.generate(limitedTeam.length, (index) {
                 final member = limitedTeam[index];
                 final Color color = AppColors.chartColors[index % AppColors.chartColors.length];
-                
+
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
@@ -749,8 +826,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          member['DeptName'] ?? '', 
-                          style: TextStyle(fontSize: UIConstants.fontSizeTiny, color: color, fontWeight: FontWeight.bold)
+                          member['DeptName'] ?? '',
+                          style: TextStyle(fontSize: UIConstants.fontSizeTiny, color: color, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
@@ -763,44 +840,86 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Text('View All', style: TextStyle(fontSize: UIConstants.fontSizeSmall)),
             ),
           ),
+
+        // ── Approvals card ──────────────────────────────────────────────
         if (approvals.isNotEmpty)
           _buildCard(
-            'Approvals',
+            'Pending Approvals',
             Column(
-              children: approvals.map((approval) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.notifications_outlined, size: 18, color: AppColors.error),
+              children: List.generate(approvals.length, (index) {
+                final approval = approvals[index];
+                final reqType = approval['ReqType']?.toString() ?? '';
+                final status = approval['Status']?.toString() ?? '';
+                final empName = approval['EmpName']?.toString() ?? '';
+                final date = approval['SDate']?.toString() ?? approval['sdate']?.toString() ?? '';
+                final meta = _approvalMeta(reqType);
+                final Color iconColor = meta['color'] as Color;
+                final IconData iconData = meta['icon'] as IconData;
+
+                final String approvalId = (approval['id'] ?? approval['Id'] ?? '').toString();
+
+                return InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => _navigateToApproval(reqType, reqType, id: approvalId.isNotEmpty ? approvalId : null),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: iconColor.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: iconColor.withValues(alpha: 0.15)),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Text(approval['ReqType'] ?? 'Request', style: TextStyle(fontWeight: FontWeight.bold, fontSize: UIConstants.fontSizeBody)),
-                        Text(approval['Status'] ?? '', style: TextStyle(fontSize: UIConstants.fontSizeSmall, color: Colors.grey)),
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: iconColor.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(iconData, size: 18, color: iconColor),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                reqType.isEmpty ? 'Request' : reqType,
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: UIConstants.fontSizeBody, color: const Color(0xFF1F2937)),
+                              ),
+                              if (empName.isNotEmpty)
+                                Text(empName, style: TextStyle(fontSize: UIConstants.fontSizeSmall, color: Colors.grey.shade700)),
+                              if (date.isNotEmpty)
+                                Text(date, style: TextStyle(fontSize: UIConstants.fontSizeTiny, color: Colors.grey.shade500)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: _statusColor(status).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                status.isEmpty ? 'Pending' : status,
+                                style: TextStyle(fontSize: UIConstants.fontSizeTiny, color: _statusColor(status), fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Icon(Icons.chevron_right, size: 16, color: Colors.grey.shade400),
+                          ],
+                        ),
                       ],
-                    )),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pushNamed(context, '/approval'), 
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green, 
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                        minimumSize: const Size(60, 30),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                      ), 
-                      child: Text('View', style: TextStyle(color: Colors.white, fontSize: UIConstants.fontSizeTiny))
                     ),
-                  ],
-                ),
-              )).toList(),
+                  ),
+                );
+              }),
             ),
             trailing: TextButton(
               onPressed: () => Navigator.pushNamed(context, '/approval'),
@@ -809,6 +928,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
       ],
     );
+  }
+
+  Color _statusColor(String status) {
+    final s = status.toLowerCase();
+    if (s.contains('approved') || s.contains('accept')) return Colors.green;
+    if (s.contains('reject') || s.contains('denied')) return Colors.red;
+    if (s.contains('pending') || s.contains('wait') || s.isEmpty) return const Color(0xFFF26522);
+    return AppColors.primary;
   }
 
   Widget _buildCard(String title, Widget content, {Widget? trailing}) {

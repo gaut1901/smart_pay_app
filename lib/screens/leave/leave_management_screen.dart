@@ -1249,6 +1249,15 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   }
 
   Widget _buildSummarySection() {
+    final colors = [
+      AppColors.primary,
+      const Color(0xFF00C853),
+      const Color(0xFFFF4081),
+      const Color(0xFF2196F3),
+      const Color(0xFFFF6D00),
+      const Color(0xFF9C27B0),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1263,37 +1272,72 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
             crossAxisCount: 2,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            mainAxisExtent: 130,
+            mainAxisExtent: 158,
           ),
           itemCount: _periodBalances.length,
           itemBuilder: (context, index) {
             final b = _periodBalances[index];
+            final color = colors[index % colors.length];
+
             return Container(
-              padding: const EdgeInsets.all(12),
-              decoration: AppStyles.modernCardDecoration.copyWith(
-                border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: color.withOpacity(0.2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(b.leaveType, 
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 13)),
-                  const Spacer(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildSummaryItem('Opening', b.yearOpen.toStringAsFixed(1)),
-                      _buildSummaryItem('Credit', b.yearCredit.toStringAsFixed(1)),
-                    ],
+                  // ── Coloured header strip ──
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF1F2937),
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+                    ),
+                    child: Text(
+                      b.leaveType,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildSummaryItem('Taken', b.yearTaken.toStringAsFixed(1)),
-                      _buildSummaryItem('Balance', b.yearBalance.toStringAsFixed(1), highlight: true),
-                    ],
+                  // ── 2 × 2 ordered value grid ──
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(child: _buildSummaryItem('Opening', b.yearOpen.toStringAsFixed(1))),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildSummaryItem('Credit', b.yearCredit.toStringAsFixed(1))),
+                            ],
+                          ),
+                          const Divider(height: 10, thickness: 0.6),
+                          Row(
+                            children: [
+                              Expanded(child: _buildSummaryItem('Taken', b.yearTaken.toStringAsFixed(1))),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildSummaryItem('Balance', b.yearBalance.toStringAsFixed(1), highlight: true)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
