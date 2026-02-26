@@ -120,15 +120,26 @@ class _MainDrawerState extends State<MainDrawer> {
                 : ListView(
                     padding: EdgeInsets.zero,
                     children: [
-                      // Always show generic dashboard if API fails or returns empty, 
-                      // or if we just want to ensure it's there. 
-                      // However, strict dynamic means we rely on API.
-                      // Let's rely on API, but maybe keep Dashboard as a static fallback or pinned item?
-                      // For this request, "menus are coming from api".
-                      // We will iterate the API items.
+                      // Teams: shown only when dtTeam.length > 0
+                      // (mirrors smartpayv4: ng-if="mc.dtTeam.length>0")
+                      if (AuthService.cachedDtTeam.isNotEmpty)
+                        _buildDrawerItem(
+                          context,
+                          icon: Icons.groups,
+                          title: 'Teams',
+                          onTap: () {
+                            Navigator.pop(context);
+                            if (ModalRoute.of(context)?.settings.name != '/teams') {
+                              Navigator.pushNamed(context, '/teams');
+                            }
+                          },
+                        ),
+
+                      // Dynamic items from API (Teams handled above, skip to avoid duplication)
                       ..._menuItems.map((menu) {
                         final routeName = _getRouteForMenu(menu.menuCaption);
-                        if (routeName == null) return const SizedBox.shrink(); // Skip unknown menus
+                        if (routeName == null) return const SizedBox.shrink();
+                        if (routeName == '/teams') return const SizedBox.shrink(); // Teams shown above
 
                         return _buildDrawerItem(
                           context,
@@ -137,7 +148,6 @@ class _MainDrawerState extends State<MainDrawer> {
                           onTap: () {
                             Navigator.pop(context);
                             if (ModalRoute.of(context)?.settings.name != routeName) {
-                              // Special case for Dashboard removal logic if needed
                               if (routeName == '/dashboard') {
                                 Navigator.pushNamedAndRemoveUntil(context, routeName, (route) => false);
                               } else {
@@ -147,10 +157,8 @@ class _MainDrawerState extends State<MainDrawer> {
                           },
                         );
                       }),
-                      
-                      // Fallback: If no menus loaded (e.g. error/empty), show default static list?
-                      // Or just show nothing? The user asked for "menus come from api".
-                      // I will show a message or just the Logout button if empty.
+
+                      // Show message if API returned no items at all
                       if (_menuItems.isEmpty && !_isLoading)
                         const Padding(
                           padding: EdgeInsets.all(16.0),

@@ -401,6 +401,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
             builder: (context) => ApprovalListScreen(
               type: type,
               title: title,
+              empCode: widget.empCode, // Pass empCode so it survives TeamDetailScreen's dispose
             ),
           ),
         ).then((_) => _loadApprovalsOnly());

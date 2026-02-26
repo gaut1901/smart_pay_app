@@ -43,10 +43,16 @@ class _TeamsScreenState extends State<TeamsScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      final errorMsg = e.toString().replaceAll('Exception: ', '');
+      // If the error is simply that no team member list was found in the response,
+      // treat it as an empty list rather than a hard error.
+      final isEmptyResult = errorMsg.toLowerCase().contains('not found') ||
+          errorMsg.toLowerCase().contains('team member list');
       setState(() {
-        _error = e.toString().replaceAll('Exception: ', '');
+        _error = isEmptyResult ? null : errorMsg;
+        _teamMembers = [];
+        _filteredTeamMembers = [];
         _isLoading = false;
-        _filteredTeamMembers = []; // Clear filtered list on error
       });
     }
   }
@@ -148,9 +154,25 @@ class _TeamsScreenState extends State<TeamsScreen> {
                   ),
                 )
               : _teamMembers.isEmpty
-                  ? const Center(
-                      child: Text('No team members found'),
-                    )
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.groups_outlined, size: 64, color: Colors.grey[300]),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No team members found',
+                                style: TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 8),
+                              ElevatedButton.icon(
+                                onPressed: _loadTeamMembers,
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        )
                   : _filteredTeamMembers.isEmpty && _searchController.text.isNotEmpty
                       ? const Center(
                           child: Text('No team members found matching your search'),

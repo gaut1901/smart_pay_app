@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../data/services/approval_service.dart';
+import '../../data/services/auth_service.dart';
 import '../../core/constants.dart';
 import '../../core/ui_constants.dart';
 import '../../core/widgets/date_picker_field.dart';
@@ -9,11 +10,13 @@ import 'approval_detail_screen.dart';
 class ApprovalListScreen extends StatefulWidget {
   final String type;
   final String title;
+  final String? empCode; // Optional: set when navigating from Team Detail screen
 
   const ApprovalListScreen({
     super.key,
     required this.type,
     required this.title,
+    this.empCode,
   });
 
   @override
@@ -49,6 +52,11 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    // Set member emp code if navigating from a team detail screen
+    if (widget.empCode != null && widget.empCode!.isNotEmpty) {
+      AuthService.memberEmpCode = widget.empCode!;
+    }
     
     final now = DateTime.now();
     _fromDate = DateTime(now.year, now.month, 1);
@@ -61,6 +69,10 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
   @override
   void dispose() {
     _tabController.dispose();
+    // Reset member emp code if we set it
+    if (widget.empCode != null && widget.empCode!.isNotEmpty) {
+      AuthService.memberEmpCode = '0';
+    }
     super.dispose();
   }
 
@@ -754,6 +766,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
           type: widget.type,
           id: recordId,
           title: widget.title,
+          empCode: widget.empCode, // Pass empCode along to detail screen
         ),
       ),
     ).then((refresh) {

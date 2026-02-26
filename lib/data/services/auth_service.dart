@@ -22,6 +22,10 @@ class AuthService {
   static List<MenuModel> _cachedMenus = [];
   static List<MenuModel> get cachedMenus => _cachedMenus;
 
+  // Cache dtTeam list (same as smartpayv4's mc.dtTeam) — used to show/hide Teams in the drawer
+  static List<dynamic> _cachedDtTeam = [];
+  static List<dynamic> get cachedDtTeam => _cachedDtTeam;
+
   Future<User?> login(String username, String password) async {
     final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.login}');
     
@@ -78,6 +82,9 @@ class AuthService {
         final responseData = jsonDecode(data['response']);
         
         final menuList = responseData['menudt1'] as List?;
+        final teamList = responseData['dtTeam'] as List? ?? [];
+        
+        _cachedDtTeam = teamList;
         if (menuList == null) return [];
         
         _cachedMenus = menuList.map((e) => MenuModel.fromJson(e)).toList();
@@ -95,5 +102,6 @@ class AuthService {
     _currentUser = null;
     _memberEmpCode = "0";
     _cachedMenus = [];
+    _cachedDtTeam = [];
   }
 }

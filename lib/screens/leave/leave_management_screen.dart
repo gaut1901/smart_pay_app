@@ -1245,78 +1245,39 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   }
 
   Widget _buildSummarySection() {
-    // If we have explicit yearly/monthly data from details search, use it
-    if (_yearlyBalances.isNotEmpty || _monthlyBalances.isNotEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-            child: Text('Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textDark)),
-          ),
-          if (_yearlyBalances.isNotEmpty)
-            _buildBalanceSummaryTable(
-              'Yearly',
-              _yearlyBalances.cast<Map<String, dynamic>>(),
-              ['LEAVE', 'OPENING', 'CREDIT', 'LAPS', 'TAKEN', 'PENDING', 'CLOSING'],
-              ['LEAVE', 'OPENING', 'CREDIT', 'LAPS', 'TAKEN', 'PENDING', 'CLOSING'],
-            ),
-          if (_monthlyBalances.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _buildBalanceSummaryTable(
-              'Monthly',
-              _monthlyBalances.cast<Map<String, dynamic>>(),
-              ['LEAVE', 'OPENING', 'CREDIT', 'TAKEN', 'LAPS', 'PENDING', 'CLOSING'],
-              ['LEAVE', 'OPENING', 'CREDIT', 'TAKEN', 'LAPS', 'PENDING', 'CLOSING'],
-            ),
-          ],
-        ],
-      );
+    List<Map<String, dynamic>> summaryData = [];
+    
+    // PrioritizeyearlyBalances if available (from detailed search)
+    if (_yearlyBalances.isNotEmpty) {
+      summaryData = _yearlyBalances.cast<Map<String, dynamic>>();
+    } else {
+      // Fallback: Generate from periodBalances or current balances
+      final balancesToShow = _periodBalances.isNotEmpty ? _periodBalances : _balances;
+      if (balancesToShow.isNotEmpty) {
+        summaryData = balancesToShow.map((b) => {
+          'LEAVE': b.leaveType,
+          'OPENING': b.yearOpen.toStringAsFixed(1),
+          'CREDIT': b.yearCredit.toStringAsFixed(1),
+          'LAPS': b.yearLaps.toStringAsFixed(1),
+          'TAKEN': b.yearTaken.toStringAsFixed(1),
+          'PENDING': b.pending.toStringAsFixed(1),
+          'CLOSING': b.yearBalance.toStringAsFixed(1),
+        }).toList();
+      }
     }
 
-    final balancesToShow = _periodBalances.isNotEmpty ? _periodBalances : _balances;
-    if (balancesToShow.isEmpty) return const SizedBox.shrink();
-
-    // Fallback: Generate from current balances if search wasn't specific
-    final yearlyData = balancesToShow.map((b) => {
-      'LEAVE': b.leaveType,
-      'OPENING': b.yearOpen.toStringAsFixed(1),
-      'CREDIT': b.yearCredit.toStringAsFixed(1),
-      'LAPS': b.yearLaps.toStringAsFixed(1),
-      'TAKEN': b.yearTaken.toStringAsFixed(1),
-      'PENDING': b.pending.toStringAsFixed(1),
-      'CLOSING': b.yearBalance.toStringAsFixed(1),
-    }).toList();
-
-    final monthlyData = _periodBalances.map((b) => {
-      'LEAVE': b.leaveType,
-      'OPENING': b.yearOpen.toStringAsFixed(1),
-      'CREDIT': b.yearCredit.toStringAsFixed(1),
-      'TAKEN': b.yearTaken.toStringAsFixed(1),
-      'LAPS': b.yearLaps.toStringAsFixed(1),
-      'PENDING': b.pending.toStringAsFixed(1), // Added PENDING
-      'CLOSING': b.yearBalance.toStringAsFixed(1),
-    }).toList();
+    if (summaryData.isEmpty) {
+      return const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No Data', style: TextStyle(color: Colors.grey))));
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          child: Text('Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textDark)),
-        ),
         _buildBalanceSummaryTable(
-          'Yearly',
-          yearlyData,
+          'Leave Balance',
+          summaryData,
           ['LEAVE', 'OPENING', 'CREDIT', 'LAPS', 'TAKEN', 'PENDING', 'CLOSING'],
           ['LEAVE', 'OPENING', 'CREDIT', 'LAPS', 'TAKEN', 'PENDING', 'CLOSING'],
-        ),
-        const SizedBox(height: 16),
-        _buildBalanceSummaryTable(
-          'Monthly',
-          monthlyData,
-          ['LEAVE', 'OPENING', 'CREDIT', 'TAKEN', 'LAPS', 'PENDING', 'CLOSING'],
-          ['LEAVE', 'OPENING', 'CREDIT', 'TAKEN', 'LAPS', 'PENDING', 'CLOSING'],
         ),
       ],
     );

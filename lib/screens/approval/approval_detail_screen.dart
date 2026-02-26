@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../data/services/approval_service.dart';
+import '../../data/services/auth_service.dart';
 import '../../data/services/leave_service.dart';
 
 class ApprovalDetailScreen extends StatefulWidget {
   final String type;
   final String id;
   final String title;
+  final String? empCode; // Optional: set when navigating from Team Detail screen
 
   const ApprovalDetailScreen({
     super.key,
     required this.type,
     required this.id,
     required this.title,
+    this.empCode,
   });
 
   @override
@@ -32,7 +35,21 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
   @override
   void initState() {
     super.initState();
+    // Restore member emp code if navigating from a team detail context
+    if (widget.empCode != null && widget.empCode!.isNotEmpty) {
+      AuthService.memberEmpCode = widget.empCode!;
+    }
     _loadDetails();
+  }
+
+  @override
+  void dispose() {
+    _remarksController.dispose();
+    // Reset member emp code if we set it
+    if (widget.empCode != null && widget.empCode!.isNotEmpty) {
+      AuthService.memberEmpCode = '0';
+    }
+    super.dispose();
   }
 
   Future<void> _loadDetails() async {

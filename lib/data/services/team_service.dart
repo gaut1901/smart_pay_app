@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 import '../../core/api_config.dart';
 import '../models/team_model.dart';
@@ -13,23 +14,52 @@ class TeamService {
     final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.team}');
     
     try {
+      developer.log('TeamService: Fetching team members from $url');
       final response = await http.get(
         url,
         headers: user.toHeaders(),
       );
 
+      developer.log('TeamService: Response status: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final teamData = jsonDecode(data['response']);
-        
-        final teamList = teamData['dtTeam'] as List?;
-        if (teamList == null) return [];
+
+        // Log all available keys to debug which key holds team members
+        developer.log('TeamService: Response keys: ${teamData.keys.toList()}');
+
+        // Try known possible keys for team member list
+        List? teamList = teamData['dtTeam'] as List?;
+        if (teamList == null || teamList.isEmpty) {
+          teamList = teamData['dtTeamMem'] as List?;
+        }
+        if (teamList == null || teamList.isEmpty) {
+          teamList = teamData['dtMember'] as List?;
+        }
+        if (teamList == null || teamList.isEmpty) {
+          teamList = teamData['dtEmp'] as List?;
+        }
+        if (teamList == null || teamList.isEmpty) {
+          teamList = teamData['dtTeamMembers'] as List?;
+        }
+
+        developer.log('TeamService: Found ${teamList?.length ?? 0} team members');
+
+        if (teamList == null) {
+          // Throw so the error surfaces in the UI with available keys
+          throw Exception(
+            'Team member list not found in API response.\n'
+            'Available keys: ${teamData.keys.toList()}',
+          );
+        }
         
         return teamList.map((json) => TeamMember.fromJson(json)).toList();
       } else {
         throw Exception('Failed to load team members: ${response.statusCode}');
       }
     } catch (e) {
+      developer.log('TeamService: Error fetching team members: $e');
       rethrow;
     }
   }
