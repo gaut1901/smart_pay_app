@@ -53,7 +53,7 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
 
       // If it's a leave related request, try to fetch current balance proactively if not in details
       List<dynamic> fetchedBalances = [];
-      if (widget.type == 'Leave' || widget.type == 'Attendance' || widget.type == 'LeaveComp') {
+      if (widget.type == 'Leave' || widget.type == 'Attendance' || widget.type == 'LeaveComp' || widget.type == 'Supplementary') {
         final dynamic rawDt1 = details['dt1'] ?? details['dt'] ?? [];
         final List<dynamic> dt1 = rawDt1 is List ? rawDt1 : [];
         
@@ -300,6 +300,15 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
         addField('Days', ['Days', 'OldDays', 'days']);
         addField('Leave Name', ['Status', 'Status1', 'LeaveName', 'status', 'StatusType']);
         addField('Reason', ['Remarks', 'Remarks1', 'LRName', 'remarks', 'Reason']);
+        break;
+      case 'Supplementary':
+        addField('Ticket No', ['TicketNo', 'ticketno', 'TicketNo1']);
+        addField('Employee', ['EmpName', 'empname', 'EmpName1']);
+        addField('Date', ['SDate', 'sdate', 'SDate1']);
+        addField('From Date', ['FromDate', 'fdate', 'FromDate1']);
+        addField('To Date', ['ToDate', 'tdate', 'ToDate1']);
+        addField('Status', ['Status', 'status', 'Status1']);
+        addField('Reason', ['Remarks', 'remarks', 'Remarks1']);
         break;
       case 'Permission':
         addField('Type', ['PType', 'ptype']);

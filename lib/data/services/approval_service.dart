@@ -15,6 +15,7 @@ class ApprovalSummary {
   final int shiftDeviation;
   final int itFile;
   final int profileChange;
+  final int supplementary;
 
   ApprovalSummary({
     this.attendance = 0,
@@ -28,6 +29,7 @@ class ApprovalSummary {
     this.shiftDeviation = 0,
     this.itFile = 0,
     this.profileChange = 0,
+    this.supplementary = 0,
   });
 
   factory ApprovalSummary.fromJson(Map<String, dynamic> json) {
@@ -43,6 +45,7 @@ class ApprovalSummary {
       shiftDeviation: int.tryParse(json['ShiftDev']?.toString() ?? '0') ?? 0,
       itFile: int.tryParse(json['ITFile']?.toString() ?? '0') ?? 0,
       profileChange: int.tryParse(json['EmpReq']?.toString() ?? '0') ?? 0,
+      supplementary: int.tryParse(json['SuppReq']?.toString() ?? '0') ?? 0,
     );
   }
 }
@@ -110,6 +113,7 @@ class ApprovalService {
       case 'ITFile': endpoint = 'api/itfileapp/getlist/'; break;
       case 'ShiftDeviation': endpoint = 'api/attn/ShiftDevApp/'; break;
       case 'ProfileChange': endpoint = 'api/attn/EmpApp/'; break;
+      case 'Supplementary': endpoint = 'api/attn/suppapp/'; break;
       case 'LeaveComp': endpoint = 'api/attn/lgapp/'; break;
       default: throw Exception('Invalid approval type');
     }
@@ -149,6 +153,8 @@ class ApprovalService {
              details = 'Shift: ${item['ShiftName'] ?? ''} (${item['SDate'] ?? ''})';
           } else if (type == 'ProfileChange') {
              details = 'Field: ${item['FieldName'] ?? 'Profile Update'}';
+          } else if (type == 'Supplementary') {
+             details = item['status'] ?? '';
           } else if (type == 'LeaveComp') {
              details = item['status'] ?? '';
           }
@@ -195,6 +201,7 @@ class ApprovalService {
       case 'ITFile': endpoint = 'api/itfileapp/itfileapproval/'; break;
       case 'ShiftDeviation': endpoint = 'api/attn/ShiftDevApproval/'; break;
       case 'ProfileChange': endpoint = 'api/attn/EmpApproval/'; break;
+      case 'Supplementary': endpoint = 'api/attn/suppapproval/'; break;
       case 'LeaveComp': endpoint = 'api/attn/leavegapproval/'; break;
       default: throw Exception('Invalid approval type');
     }
@@ -248,6 +255,7 @@ class ApprovalService {
       case 'ITFile': endpoint = 'api/itfileapp/displayapp/'; break;
       case 'ShiftDeviation': endpoint = 'api/attn/DisplayShiftDevApp/'; break;
       case 'ProfileChange': endpoint = 'api/attn/DisplayEmpApp/'; break;
+      case 'Supplementary': endpoint = 'api/attn/DisplaySuppApp/'; break;
       case 'LeaveComp': endpoint = 'api/attn/DisplayLeaveGApp/'; break;
       default: throw Exception('Invalid approval type');
     }
@@ -344,6 +352,15 @@ class ApprovalService {
 
   Future<Map<String, dynamic>> getCompletedAssetReturnApprovals({String? fDate, String? tDate}) async {
     return _fetchData('api/assetrtnapp/appcompleted/', fDate: fDate, tDate: tDate);
+  }
+
+  // Supplementary
+  Future<Map<String, dynamic>> getSupplementaryApprovals() async {
+    return _fetchData('api/attn/suppapp/');
+  }
+
+  Future<Map<String, dynamic>> getCompletedSupplementaryApprovals({String? fDate, String? tDate}) async {
+    return _fetchData('api/attn/suppappcompleted/', fDate: fDate, tDate: tDate);
   }
 
   Future<Map<String, dynamic>> _fetchData(String endpoint, {String? fDate, String? tDate}) async {

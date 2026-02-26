@@ -95,6 +95,9 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
         case 'AdvAdj':
           data = await _approvalService.getAdvanceAdjustmentApprovals();
           break;
+        case 'Supplementary':
+          data = await _approvalService.getSupplementaryApprovals();
+          break;
         default:
           // Fallback or specific generic list
           // For now, let's assume getLeaveApprovals logic or empty
@@ -150,6 +153,9 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
           break;
         case 'AdvAdj':
           data = await _approvalService.getCompletedAdvanceAdjustmentApprovals(fDate: fDate, tDate: tDate);
+          break;
+        case 'Supplementary':
+          data = await _approvalService.getCompletedSupplementaryApprovals(fDate: fDate, tDate: tDate);
           break;
         default:
           break;
@@ -773,7 +779,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
     };
 
     final labelMap = {
-      'status': 'Leave Name',
+      'status': widget.type == 'Supplementary' ? 'Status' : 'Leave Name',
       'remarks': 'Reason',
       'app': 'Status',
       'appby': 'By',

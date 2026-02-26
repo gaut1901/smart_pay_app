@@ -30,6 +30,31 @@ class LeaveService {
     }
   }
 
+  Future<List<LeaveRequest>> getSupplementaryHistory() async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+      final url = Uri.parse('${ApiConfig.baseUrl}api/empsappreq/getlist/');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: user.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final responseData = jsonDecode(data['response']);
+        final List<dynamic> list = responseData['dtList'] ?? responseData['dtLapp'] ?? [];
+        return list.map((item) => LeaveRequest.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load supplementary history: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<List<LeaveBalance>> getLeaveBalance({DateTime? date}) async {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('User not logged in');
@@ -96,6 +121,29 @@ class LeaveService {
         return jsonDecode(data['response']);
       } else {
         throw Exception('Failed to load leave details: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getSupplementaryDetails(String id, {String action = 'View'}) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}api/empsappreq/display/?id=$id&action=$action');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: user.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return jsonDecode(data['response']);
+      } else {
+        throw Exception('Failed to load supplementary details: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
@@ -297,6 +345,97 @@ class LeaveService {
         };
       } else {
         throw Exception('Failed to load leave balance details: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> submitSupplementaryRequest({
+    required String sDate,
+    required String fDate,
+    required String tDate,
+    required String remarks,
+    required String status,
+    required String lrName,
+    String fText = "Full Day",
+    String tText = "Full Day",
+    String actions = "Create",
+    String editId = "",
+    Map<String, dynamic>? oldDetails,
+  }) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}api/empsappreq/submit/');
+    
+    final postData = {
+      "SDate": sDate,
+      "FromDate": fDate,
+      "ToDate": tDate,
+      "Remarks": remarks,
+      "Status": status,
+      "LRName": lrName,
+      "FText": fText,
+      "TText": tText,
+      "Days": 0,
+      "Revise": actions == "Revise",
+      "App": oldDetails?['App'] ?? "-",
+      "App1": oldDetails?['App1'] ?? "-",
+      "OldFromDate": oldDetails?['FromDate'] ?? fDate,
+      "OldToDate": oldDetails?['ToDate'] ?? tDate,
+      "OldRemarks": oldDetails?['Remarks'] ?? remarks,
+      "OldStatus": oldDetails?['Status'] ?? status,
+      "OldLRName": oldDetails?['LRName'] ?? lrName,
+      "OldFText": oldDetails?['FText'] ?? fText,
+      "OldTText": oldDetails?['TText'] ?? tText,
+      "FilePath": "",
+      "MCReq": false,
+      "OldDays": 0,
+      "CoffText": "",
+      "Actions": actions,
+      "EditId": editId,
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: user.toHeaders(),
+        body: jsonEncode(postData),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final responseData = jsonDecode(data['response']);
+        if (responseData['JSONResult'] == 1) {
+          throw Exception(responseData['error'] ?? 'Failed to submit supplementary request');
+        }
+      } else {
+        throw Exception('Failed to submit supplementary request: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<LeaveBalance>> getSupplementaryLeaveBalance(String fDate) async {
+    final user = AuthService.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final url = Uri.parse('${ApiConfig.baseUrl}api/empsappreq/getLeaveBalance/?fdate=$fDate');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: user.toHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> list = jsonDecode(data['response']);
+        return list.map((item) => LeaveBalance.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load supplementary leave balance: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;

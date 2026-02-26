@@ -101,6 +101,14 @@ class _RequestScreenState extends State<RequestScreen> {
         'route': '/leave',
       });
     }
+    if (_rights!['isSuppReq'] == true) {
+      items.add({
+        'title': 'Supplementary Request',
+        'icon': Icons.post_add,
+        'color': const Color(0xFFAB47BC),
+        'route': '/supplementary_request',
+      });
+    }
     if (_rights!['isLeaveGrant'] == true) {
       items.add({
         'title': 'Apply Leave Compensation',

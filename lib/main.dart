@@ -18,6 +18,7 @@ import 'screens/asset/asset_request_screen.dart';
 import 'screens/asset/asset_return_screen.dart';
 import 'screens/it_file/it_file_screen.dart';
 import 'screens/request/shift_deviation_screen.dart';
+import 'screens/supplementary/supplementary_request_screen.dart';
 import 'screens/approval/approval_screen.dart';
 import 'screens/teams/teams_screen.dart';
 import 'screens/teams/team_detail_screen.dart';
@@ -67,6 +68,7 @@ class SmartPayApp extends StatelessWidget {
         '/asset_return': (context) => const AssetReturnScreen(),
         '/it_file': (context) => const ITFileScreen(),
         '/shift_deviation': (context) => const ShiftDeviationScreen(),
+        '/supplementary_request': (context) => const SupplementaryRequestScreen(),
         '/approval': (context) => const ApprovalScreen(),
         '/teams': (context) => const TeamsScreen(),
         '/change_password': (context) => const ChangePasswordScreen(),
