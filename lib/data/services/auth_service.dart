@@ -41,13 +41,15 @@ class AuthService {
         final responseData = jsonDecode(data['response']);
         if (responseData['success'] == "OK") {
           _currentUser = User.fromJson(responseData);
-          // Clear cache on new login
+          // Clear cache and pre-fetch menus on new login
           _cachedMenus = [];
+          await getMenu(); 
           return _currentUser;
         } else {
           throw Exception(responseData['error'] ?? 'Login failed');
         }
       } else {
+
         throw Exception('Server error: ${response.statusCode}');
       }
     } on SocketException catch (_) {

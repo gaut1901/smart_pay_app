@@ -24,7 +24,10 @@ class _MainDrawerState extends State<MainDrawer> {
 
   Future<void> _fetchMenus() async {
     try {
+      developer.log('MainDrawer: Fetching menus...');
       final menus = await AuthService().getMenu();
+      developer.log('MainDrawer: Fetched ${menus.length} menu items');
+      
       if (mounted) {
         setState(() {
           _menuItems = menus;
@@ -45,11 +48,15 @@ class _MainDrawerState extends State<MainDrawer> {
   String? _getRouteForMenu(String caption) {
     // Normalize string for comparison
     final normalizedCaption = caption.replaceAll(' ', '').toLowerCase();
+    developer.log('MainDrawer: Mapping route for caption: $caption (normalized: $normalizedCaption)');
     
     if (normalizedCaption.contains('dashboard')) return '/dashboard';
     if (normalizedCaption.contains('team')) return '/teams';
     // Requests is usually "Leave Request", "Permission Request", "Manual Punch" under a parent,
     // or sometimes just "Requests". For now, if we match "Request", go to /request
+    if (normalizedCaption.contains('leaverequest')) return '/leave';
+    if (normalizedCaption.contains('permissionrequest')) return '/permission_request';
+    if (normalizedCaption.contains('manualpunch') || normalizedCaption.contains('attendanceapproval')) return '/approval';
     if (normalizedCaption.contains('request')) return '/request';
     if (normalizedCaption.contains('itfile') || normalizedCaption.contains('incometax')) return '/it_file';
     if (normalizedCaption.contains('approval')) return '/approval';
@@ -57,9 +64,11 @@ class _MainDrawerState extends State<MainDrawer> {
     if (normalizedCaption.contains('leavebalance')) return '/leave';
     if (normalizedCaption.contains('payslip')) return '/payslips';
     if (normalizedCaption.contains('shiftschedule') || normalizedCaption.contains('roster')) return '/shift';
+    if (normalizedCaption.contains('changepassword')) return '/change_password';
     
     return null;
   }
+
 
   // Helper to map web icon classes (FontAwesome) to Flutter Icons
   IconData _getIconForMenu(String iconClass, String caption) {

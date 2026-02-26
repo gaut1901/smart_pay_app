@@ -76,6 +76,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
       Map<String, dynamic> data = {};
       
       switch (widget.type) {
+        case 'Attendance':
         case 'Leave':
           data = await _approvalService.getLeaveApprovals();
           break;
@@ -131,6 +132,7 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
        Map<String, dynamic> data = {};
       
       switch (widget.type) {
+        case 'Attendance':
         case 'Leave':
           data = await _approvalService.getCompletedLeaveApprovals(fDate: fDate, tDate: tDate);
           break;
@@ -727,18 +729,31 @@ class _ApprovalListScreenState extends State<ApprovalListScreen> with SingleTick
   }
 
   void _openDetail(dynamic item) {
+    // Robust ID extraction
+    final String recordId = (item['id'] ?? item['Id'] ?? item['ID'] ?? 
+                             item['TicketNo'] ?? item['ticketno'] ?? 
+                             item['TKTNO'] ?? '').toString();
+    
+    if (recordId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Could not determine record ID')),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ApprovalDetailScreen(
           type: widget.type,
-          id: (item['id'] ?? item['Id'] ?? '').toString(),
+          id: recordId,
           title: widget.title,
         ),
       ),
     ).then((refresh) {
       if (refresh == true) {
         _loadPendingData();
+        _loadCompletedData();
       }
     });
   }

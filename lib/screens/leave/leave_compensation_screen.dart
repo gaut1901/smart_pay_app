@@ -286,24 +286,156 @@ class _LeaveCompensationScreenState extends State<LeaveCompensationScreen> with 
           }
           
           final d = snapshot.data!;
+          
+          // Helper for punch times
+          String? getPunch(List<String> keys) {
+            for (var k in keys) {
+              if (d.containsKey(k) && d[k] != null) {
+                final val = d[k].toString().trim();
+                // Only ignore clearly malformed or null values
+                if (val != 'null' && val.isNotEmpty && !val.contains('? string:')) {
+                  return val;
+                }
+              }
+            }
+            return null;
+          }
+
+          final sin = getPunch(['SIn', 'SIn1', 'SInTime', 'In1', 'In']) ?? '';
+          final lout = getPunch(['LOut', 'LOut1', 'LOutTime', 'LunchOut1', 'LunchOut']) ?? '';
+          final lin = getPunch(['LIn', 'LIn1', 'LInTime', 'LunchIn1', 'LunchIn']) ?? '';
+          final sout = getPunch(['SOut', 'SOut1', 'SOutTime', 'Out1', 'Out']) ?? '';
+
+          bool hasPunch = sin.isNotEmpty || lout.isNotEmpty || lin.isNotEmpty || sout.isNotEmpty;
+          
+          List<dynamic> dt1 = d['dt1'] as List? ?? d['dt'] as List? ?? d['dtAbs'] as List? ?? [];
+          List<dynamic> dt2 = d['dt2'] as List? ?? d['dtAbs1'] as List? ?? [];
+          List<dynamic> dt3 = d['dt3'] as List? ?? [];
+          List<dynamic> dt4 = d['dt4'] as List? ?? [];
+          
+          if (dt2.isEmpty && dt3.isNotEmpty) dt2 = dt3;
+          if (dt2.isEmpty && dt4.isNotEmpty) dt2 = dt4;
+
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 UIConstants.buildDetailItem('Ticket No', d['TicketNo'] ?? ''),
                 UIConstants.buildDetailItem('Employee', d['EmpName'] ?? ''),
                 UIConstants.buildDetailItem('Worked Date', d['SDate'] ?? ''),
                 UIConstants.buildDetailItem('Days', (d['Days'] ?? 0).toString()),
-                UIConstants.buildDetailItem('Leave Name', d['Status'] ?? ''),
-                UIConstants.buildDetailItem('Reason', d['LRName'] ?? ''),
+                UIConstants.buildDetailItem('Leave Name', getPunch(['Status1', 'Status', 'MStatus1', 'MStatus', 'LeaveName', 'status']) ?? '-'),
+                UIConstants.buildDetailItem('Reason', getPunch(['Remarks1', 'Remarks', 'LRName', 'remarks']) ?? '-'),
                 UIConstants.buildDetailItem('Remarks', d['Remarks'] ?? ''),
                 UIConstants.buildDetailItem('Status', d['App'] ?? ''),
                 UIConstants.buildDetailItem('Approved By', d['AppBy'] ?? ''),
+                
+                if (hasPunch) ...[
+                  const SizedBox(height: 20),
+                  const Text('Attendance Punch Details', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.blue.shade100)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildPunchItem('In', sin),
+                        _buildPunchItem('L-Out', lout),
+                        _buildPunchItem('L-In', lin),
+                        _buildPunchItem('Out', sout),
+                      ],
+                    ),
+                  ),
+                ],
+
+                if (dt1.isNotEmpty || dt2.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  _buildBalanceSummaryTable(
+                    'Yearly',
+                    dt1,
+                    ['LEAVE', 'OPENING', 'CREDIT', 'LAPS', 'TAKEN', 'PENDING', 'CLOSING'],
+                    ['status', 'OB', 'Entitle', 'Laps', 'Taken', 'Pending', 'Balance'],
+                  ),
+                  if (dt2.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _buildBalanceSummaryTable(
+                      'Monthly',
+                      dt2,
+                      ['LEAVE', 'OPENING', 'CREDIT', 'TAKEN', 'LAPS', 'PENDING', 'CLOSING'],
+                      ['status', 'OB', 'Entitle', 'Taken', 'Laps', 'Pending', 'Balance'],
+                    ),
+                  ],
+                ],
               ],
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildPunchItem(String label, String value) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.blueGrey, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 4),
+        Text(value.isNotEmpty ? value : '-', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue)),
+      ],
+    );
+  }
+
+  Widget _buildBalanceSummaryTable(String title, List<dynamic> data, List<String> headers, List<String> keys) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade300)),
+          child: Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary)),
+        ),
+        Table(
+          border: TableBorder.all(color: Colors.grey.shade300),
+          children: [
+            TableRow(
+              decoration: BoxDecoration(color: Colors.grey.shade50),
+              children: headers.map((h) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(h, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              )).toList(),
+            ),
+            ...data.map((item) {
+              return TableRow(
+                children: keys.map((k) {
+                  final longKey = k == 'OB' || k == 'OPENING' ? 'YearOpen' : 
+                                 k == 'Entitle' || k == 'CREDIT' ? 'YearCredit' :
+                                 k == 'Laps' || k == 'LAPS' ? 'YearLaps' :
+                                 k == 'Taken' || k == 'TAKEN' ? 'YearTaken' :
+                                 k == 'Balance' || k == 'CLOSING' ? 'YearBalance' : 
+                                 k == 'Pending' || k == 'PENDING' ? 'Pending' :
+                                 k == 'LEAVE' ? 'LeaveName' : k;
+                  
+                  final value = item[k] ?? item[longKey] ?? item[k.toLowerCase()] ?? item[longKey.toLowerCase()] ?? (k == 'LEAVE' ? '-' : '0');
+                  
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                    child: Text(
+                      value.toString(),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: k == 'LEAVE' ? 10 : 12,
+                        fontWeight: k == 'LEAVE' ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            }),
+          ],
+        ),
+      ],
     );
   }
 

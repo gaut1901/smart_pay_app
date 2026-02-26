@@ -78,8 +78,8 @@ class _ApprovalScreenState extends State<ApprovalScreen> {
     if (_summary == null) return const SizedBox.shrink();
 
     final List<Map<String, dynamic>> gridItems = [
-      {'title': 'Apply Leave', 'type': 'Leave', 'count': _summary!.leave, 'icon': Icons.calendar_today, 'color': const Color(0xFF00C853)},
-      {'title': 'Apply Leave Compensation', 'type': 'LeaveComp', 'count': 0, 'icon': Icons.history, 'color': const Color(0xFF2196F3)},
+      {'title': 'Apply Leave', 'type': 'Attendance', 'count': _summary!.attendance, 'icon': Icons.calendar_today, 'color': const Color(0xFF00C853)},
+      {'title': 'Apply Leave Compensation', 'type': 'LeaveComp', 'count': _summary!.leave, 'icon': Icons.history, 'color': const Color(0xFF2196F3)},
       {'title': 'Advance', 'type': 'Advance', 'count': _summary!.advance, 'icon': Icons.money, 'color': const Color(0xFFFF4081)},
       {'title': 'Advance Adjustment', 'type': 'AdvAdj', 'count': _summary!.advanceAdjustment, 'icon': Icons.calculate, 'color': const Color(0xFF3B7080)},
       {'title': 'Shift Deviation', 'type': 'ShiftDev', 'count': _summary!.shiftDeviation, 'icon': Icons.schedule, 'color': const Color(0xFFD50000)},

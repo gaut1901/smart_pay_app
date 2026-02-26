@@ -24,6 +24,8 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   List<LeaveBalance> _periodBalances = []; // For Leave Balance Tab (Search)
   List<dynamic> _balanceDetails = []; // For the detailed card view (dt)
   List<dynamic> _statusDetails = []; // For the status/days card view (dt1)
+  List<dynamic> _yearlyBalances = []; // For Yearly table (dt1 or dt2)
+  List<dynamic> _monthlyBalances = []; // For Monthly table (dt2 or dt3)
   bool _isLoadingHistory = true;
   bool _isLoadingBalance = true;
   bool _isLoadingPeriodBalance = false;
@@ -323,6 +325,8 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
       // 2. Fetch detailed balance and status summary (dt and dt1)
       List<dynamic> details = [];
       List<dynamic> status = [];
+      List<dynamic> yearly = [];
+      List<dynamic> monthly = [];
       if (_selectedPeriod != null && _selectedPeriod != 'Select Leave Period') {
         final result = await _leaveService.getLeaveBalanceDetails(
           fDate: dateFormatDisp.format(_periodStartDate),
@@ -331,12 +335,25 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
         );
         details = result['dt'] ?? [];
         status = result['dt1'] ?? [];
+        
+        List<dynamic> dt1 = result['dt1'] as List? ?? result['dt'] as List? ?? result['dtAbs'] as List? ?? [];
+        List<dynamic> dt2 = result['dt2'] as List? ?? result['dtAbs1'] as List? ?? [];
+        List<dynamic> dt3 = result['dt3'] as List? ?? [];
+        List<dynamic> dt4 = result['dt4'] as List? ?? [];
+
+        if (dt2.isEmpty && dt3.isNotEmpty) dt2 = dt3;
+        if (dt2.isEmpty && dt4.isNotEmpty) dt2 = dt4;
+
+        yearly = dt1;
+        monthly = dt2;
       }
 
       setState(() {
         _periodBalances = uniqueBalances.values.toList();
         _balanceDetails = details;
         _statusDetails = status;
+        _yearlyBalances = yearly;
+        _monthlyBalances = monthly;
         _isLoadingPeriodBalance = false;
         _isLoadingDetails = false;
       });
@@ -1249,14 +1266,58 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
   }
 
   Widget _buildSummarySection() {
-    final colors = [
-      AppColors.primary,
-      const Color(0xFF00C853),
-      const Color(0xFFFF4081),
-      const Color(0xFF2196F3),
-      const Color(0xFFFF6D00),
-      const Color(0xFF9C27B0),
-    ];
+    // If we have explicit yearly/monthly data from details search, use it
+    if (_yearlyBalances.isNotEmpty || _monthlyBalances.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Text('Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textDark)),
+          ),
+          if (_yearlyBalances.isNotEmpty)
+            _buildBalanceSummaryTable(
+              'Yearly',
+              _yearlyBalances.cast<Map<String, dynamic>>(),
+              ['LEAVE', 'OPENING', 'CREDIT', 'LAPS', 'TAKEN', 'PENDING', 'CLOSING'],
+              ['LEAVE', 'OPENING', 'CREDIT', 'LAPS', 'TAKEN', 'PENDING', 'CLOSING'],
+            ),
+          if (_monthlyBalances.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildBalanceSummaryTable(
+              'Monthly',
+              _monthlyBalances.cast<Map<String, dynamic>>(),
+              ['LEAVE', 'OPENING', 'CREDIT', 'TAKEN', 'LAPS', 'PENDING', 'CLOSING'],
+              ['LEAVE', 'OPENING', 'CREDIT', 'TAKEN', 'LAPS', 'PENDING', 'CLOSING'],
+            ),
+          ],
+        ],
+      );
+    }
+
+    final balancesToShow = _periodBalances.isNotEmpty ? _periodBalances : _balances;
+    if (balancesToShow.isEmpty) return const SizedBox.shrink();
+
+    // Fallback: Generate from current balances if search wasn't specific
+    final yearlyData = balancesToShow.map((b) => {
+      'LEAVE': b.leaveType,
+      'OPENING': b.yearOpen.toStringAsFixed(1),
+      'CREDIT': b.yearCredit.toStringAsFixed(1),
+      'LAPS': b.yearLaps.toStringAsFixed(1),
+      'TAKEN': b.yearTaken.toStringAsFixed(1),
+      'PENDING': b.pending.toStringAsFixed(1),
+      'CLOSING': b.yearBalance.toStringAsFixed(1),
+    }).toList();
+
+    final monthlyData = _periodBalances.map((b) => {
+      'LEAVE': b.leaveType,
+      'OPENING': b.yearOpen.toStringAsFixed(1),
+      'CREDIT': b.yearCredit.toStringAsFixed(1),
+      'TAKEN': b.yearTaken.toStringAsFixed(1),
+      'LAPS': b.yearLaps.toStringAsFixed(1),
+      'PENDING': b.pending.toStringAsFixed(1), // Added PENDING
+      'CLOSING': b.yearBalance.toStringAsFixed(1),
+    }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1265,99 +1326,81 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
           padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           child: Text('Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textDark)),
         ),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            mainAxisExtent: 158,
-          ),
-          itemCount: _periodBalances.length,
-          itemBuilder: (context, index) {
-            final b = _periodBalances[index];
-            final color = colors[index % colors.length];
-
-            return Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: color.withOpacity(0.2)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ── Coloured header strip ──
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF1F2937),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
-                    ),
-                    child: Text(
-                      b.leaveType,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  // ── 2 × 2 ordered value grid ──
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(10),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(child: _buildSummaryItem('Opening', b.yearOpen.toStringAsFixed(1))),
-                              const SizedBox(width: 8),
-                              Expanded(child: _buildSummaryItem('Credit', b.yearCredit.toStringAsFixed(1))),
-                            ],
-                          ),
-                          const Divider(height: 10, thickness: 0.6),
-                          Row(
-                            children: [
-                              Expanded(child: _buildSummaryItem('Taken', b.yearTaken.toStringAsFixed(1))),
-                              const SizedBox(width: 8),
-                              Expanded(child: _buildSummaryItem('Balance', b.yearBalance.toStringAsFixed(1), highlight: true)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+        _buildBalanceSummaryTable(
+          'Yearly',
+          yearlyData,
+          ['LEAVE', 'OPENING', 'CREDIT', 'LAPS', 'TAKEN', 'PENDING', 'CLOSING'],
+          ['LEAVE', 'OPENING', 'CREDIT', 'LAPS', 'TAKEN', 'PENDING', 'CLOSING'],
+        ),
+        const SizedBox(height: 16),
+        _buildBalanceSummaryTable(
+          'Monthly',
+          monthlyData,
+          ['LEAVE', 'OPENING', 'CREDIT', 'TAKEN', 'LAPS', 'PENDING', 'CLOSING'],
+          ['LEAVE', 'OPENING', 'CREDIT', 'TAKEN', 'LAPS', 'PENDING', 'CLOSING'],
         ),
       ],
     );
   }
 
-  Widget _buildSummaryItem(String label, String value, {bool highlight = false}) {
+  Widget _buildBalanceSummaryTable(String title, List<Map<String, dynamic>> data, List<String> headers, List<String> keys) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-        Text(value, style: TextStyle(
-          fontSize: 13, 
-          fontWeight: highlight ? FontWeight.bold : FontWeight.w600,
-          color: highlight ? AppColors.accent : AppColors.textDark
-        )),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary),
+          ),
+        ),
+        Table(
+          border: TableBorder.all(color: Colors.grey.shade300),
+          children: [
+            // Header
+            TableRow(
+              decoration: BoxDecoration(color: Colors.grey.shade50),
+              children: headers.map((h) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                child: Text(h, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              )).toList(),
+            ),
+            // Data rows for each leave type
+            ...data.map((item) {
+              return TableRow(
+                children: keys.map((k) {
+                  final longKey = k == 'OB' || k == 'OPENING' ? 'YearOpen' : 
+                                 k == 'Entitle' || k == 'CREDIT' ? 'YearCredit' :
+                                 k == 'Laps' || k == 'LAPS' ? 'YearLaps' :
+                                 k == 'Taken' || k == 'TAKEN' ? 'YearTaken' :
+                                 k == 'Balance' || k == 'CLOSING' ? 'YearBalance' : 
+                                 k == 'Pending' || k == 'PENDING' ? 'Pending' :
+                                 k == 'LEAVE' ? 'LeaveType' : k;
+                  
+                  final value = item[k] ?? item[longKey] ?? item[k.toLowerCase()] ?? '0';
+                  
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                    child: Text(
+                      value.toString(),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: k == 'LEAVE' || k == 'LeaveType' ? 10 : 12,
+                        fontWeight: k == 'LEAVE' || k == 'LeaveType' ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            }),
+          ],
+        ),
       ],
     );
   }

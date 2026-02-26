@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:smartpay_flutter/widgets/main_drawer.dart';
 import 'package:smartpay_flutter/core/ui_constants.dart';
 import '../../core/constants.dart';
 import '../../data/services/auth_service.dart';
@@ -8,6 +9,7 @@ import '../../data/services/attendance_service.dart';
 import '../approval/approval_list_screen.dart';
 import '../approval/approval_detail_screen.dart';
 import '../approval/shift_deviation_approval_screen.dart';
+
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -106,8 +108,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = AuthService.currentUser;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -121,7 +121,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         centerTitle: true,
         elevation: 0,
       ),
-      drawer: _buildDrawer(context, user),
+      drawer: const MainDrawer(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -158,160 +158,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildDrawer(BuildContext context, user) {
-    return Drawer(
-      backgroundColor: Colors.white,
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          const SizedBox(height: 60),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: SvgPicture.asset(
-              'assets/images/logo.svg',
-              height: 60,
-              alignment: Alignment.centerLeft,
-            ),
-          ),
-          const SizedBox(height: 40),
-          _buildDrawerItem(
-            context,
-            icon: Icons.list,
-            title: 'Dashboard',
-            onTap: () => Navigator.pop(context),
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.groups,
-            title: 'Teams',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/teams');
-            },
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.edit_note,
-            title: 'Requests',
-            titleColor: AppColors.error,
-            iconColor: AppColors.error,
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/request');
-            },
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 72),
-            child: ListTile(
-              title: const Text(
-                'IT File',
-                style: TextStyle(
-                  fontSize: UIConstants.fontSizePageTitle,
-                  color: AppColors.textGray,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/it_file');
-              },
-            ),
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.check_circle_outline,
-            title: 'Approvals',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/approval');
-            },
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.history,
-            title: 'Attendance History',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/attendance');
-            },
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.leaderboard_outlined,
-            title: 'Leave Balance',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/leave');
-            },
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.description_outlined,
-            title: 'PaySlip',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/payslips');
-            },
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.list,
-            title: 'Shift Schedule',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/shift');
-            },
-          ),
-          // _buildDrawerItem(
-          //   context,
-          //   icon: Icons.lock_outline,
-          //   title: 'Change Password',
-          //   onTap: () {
-          //     Navigator.pop(context);
-          //     Navigator.pushNamed(context, '/change_password');
-          //   },
-          // ),
-          const SizedBox(height: 20),
-          const Divider(),
-          _buildDrawerItem(
-            context,
-            icon: Icons.logout,
-            title: 'Logout',
-            onTap: () {
-              AuthService().logout();
-              Navigator.pushReplacementNamed(context, '/');
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDrawerItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    Color? titleColor,
-    Color? iconColor,
-  }) {
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: iconColor ?? AppColors.textGray,
-        size: 28,
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: UIConstants.fontSizePageTitle,
-          fontWeight: FontWeight.w500,
-          color: titleColor ?? AppColors.textGray,
-        ),
-      ),
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-    );
-  }
 
   Widget _buildProfileSection(BuildContext context, Map<String, dynamic>? emp) {
     if (emp == null) return const SizedBox.shrink();
@@ -321,7 +167,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFF2EADC), // Light gold/cream background
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+        border: Border.all(color: AppColors.accent.withOpacity(0.2)),
       ),
       child: Column(
         children: [
@@ -459,7 +305,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             width: 70,
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              color: bgColor.withValues(alpha: 0.12),
+              color: bgColor.withOpacity(0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -607,7 +453,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,7 +541,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+          border: Border.all(color: Colors.grey.withOpacity(0.1)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -810,7 +656,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
-                    backgroundColor: color.withValues(alpha: 0.1),
+                    backgroundColor: color.withOpacity(0.1),
                     child: Icon(Icons.person, color: color),
                   ),
                   title: Text(member['EmpName'] ?? '', style: TextStyle(fontSize: UIConstants.fontSizeBody, fontWeight: FontWeight.bold)),
@@ -822,7 +668,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.1),
+                          color: color.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -842,90 +688,102 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
 
         // ── Approvals card ──────────────────────────────────────────────
-        if (approvals.isNotEmpty)
-          _buildCard(
-            'Pending Approvals',
-            Column(
-              children: List.generate(approvals.length, (index) {
-                final approval = approvals[index];
-                final reqType = approval['ReqType']?.toString() ?? '';
-                final status = approval['Status']?.toString() ?? '';
-                final empName = approval['EmpName']?.toString() ?? '';
-                final date = approval['SDate']?.toString() ?? approval['sdate']?.toString() ?? '';
-                final meta = _approvalMeta(reqType);
-                final Color iconColor = meta['color'] as Color;
-                final IconData iconData = meta['icon'] as IconData;
-
-                final String approvalId = (approval['id'] ?? approval['Id'] ?? '').toString();
-
-                return InkWell(
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: () => _navigateToApproval(reqType, reqType, id: approvalId.isNotEmpty ? approvalId : null),
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: iconColor.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: iconColor.withValues(alpha: 0.15)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: iconColor.withValues(alpha: 0.12),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(iconData, size: 18, color: iconColor),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                reqType.isEmpty ? 'Request' : reqType,
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: UIConstants.fontSizeBody, color: const Color(0xFF1F2937)),
-                              ),
-                              if (empName.isNotEmpty)
-                                Text(empName, style: TextStyle(fontSize: UIConstants.fontSizeSmall, color: Colors.grey.shade700)),
-                              if (date.isNotEmpty)
-                                Text(date, style: TextStyle(fontSize: UIConstants.fontSizeTiny, color: Colors.grey.shade500)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: _statusColor(status).withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                status.isEmpty ? 'Pending' : status,
-                                style: TextStyle(fontSize: UIConstants.fontSizeTiny, color: _statusColor(status), fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Icon(Icons.chevron_right, size: 16, color: Colors.grey.shade400),
-                          ],
-                        ),
-                      ],
+        _buildCard(
+          'Pending Approvals',
+          approvals.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Text(
+                      'No pending approvals found',
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
                     ),
                   ),
-                );
-              }),
-            ),
-            trailing: TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/approval'),
-              child: Text('View All', style: TextStyle(fontSize: UIConstants.fontSizeSmall)),
-            ),
+                )
+              : Column(
+                  children: List.generate(approvals.length, (index) {
+                    final approval = approvals[index];
+                    final reqType = approval['ReqType']?.toString() ?? '';
+                    final status = approval['Status']?.toString() ?? '';
+                    final empName = approval['EmpName']?.toString() ?? '';
+                    final date = approval['SDate']?.toString() ?? approval['sdate']?.toString() ?? '';
+                    final meta = _approvalMeta(reqType);
+                    final Color iconColor = meta['color'] as Color;
+                    final IconData iconData = meta['icon'] as IconData;
+
+                    final String approvalId = (approval['id'] ?? approval['Id'] ?? approval['ID'] ?? 
+                                               approval['ticketno'] ?? approval['TicketNo'] ?? 
+                                               approval['TKTNO'] ?? '').toString();
+
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => _navigateToApproval(reqType, reqType, id: approvalId.isNotEmpty ? approvalId : null),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: iconColor.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: iconColor.withOpacity(0.15)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: iconColor.withOpacity(0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(iconData, size: 18, color: iconColor),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    reqType.isEmpty ? 'Request' : reqType,
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: UIConstants.fontSizeBody, color: const Color(0xFF1F2937)),
+                                  ),
+                                  if (empName.isNotEmpty)
+                                    Text(empName, style: TextStyle(fontSize: UIConstants.fontSizeSmall, color: Colors.grey.shade700)),
+                                  if (date.isNotEmpty)
+                                    Text(date, style: TextStyle(fontSize: UIConstants.fontSizeTiny, color: Colors.grey.shade500)),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: _statusColor(status).withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    status.isEmpty ? 'Pending' : status,
+                                    style: TextStyle(fontSize: UIConstants.fontSizeTiny, color: _statusColor(status), fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Icon(Icons.chevron_right, size: 16, color: Colors.grey.shade400),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+          trailing: TextButton(
+            onPressed: () => Navigator.pushNamed(context, '/approval'),
+            child: Text('View All', style: TextStyle(fontSize: UIConstants.fontSizeSmall)),
           ),
+        ),
+
       ],
     );
   }
@@ -945,7 +803,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

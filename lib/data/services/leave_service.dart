@@ -292,6 +292,8 @@ class LeaveService {
         return {
           'dt': List<dynamic>.from(responseData['dt'] ?? []),
           'dt1': List<dynamic>.from(responseData['dt1'] ?? []),
+          'dt2': List<dynamic>.from(responseData['dt2'] ?? []),
+          'dt3': List<dynamic>.from(responseData['dt3'] ?? []),
         };
       } else {
         throw Exception('Failed to load leave balance details: ${response.statusCode}');

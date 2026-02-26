@@ -110,6 +110,7 @@ class ApprovalService {
       case 'ITFile': endpoint = 'api/itfileapp/getlist/'; break;
       case 'ShiftDeviation': endpoint = 'api/attn/ShiftDevApp/'; break;
       case 'ProfileChange': endpoint = 'api/attn/EmpApp/'; break;
+      case 'LeaveComp': endpoint = 'api/attn/lgapp/'; break;
       default: throw Exception('Invalid approval type');
     }
 
@@ -123,10 +124,13 @@ class ApprovalService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final responseData = jsonDecode(data['response']);
-        final List<dynamic> list = responseData['dtList'] ?? responseData['dtLapp'] ?? [];
+        final responseData = data['response'] != null ? jsonDecode(data['response']) : {};
+        final dynamic rawList = responseData is Map ? (responseData['dtList'] ?? responseData['dtLapp']) : [];
+        final List<dynamic> list = rawList is List ? rawList : [];
         
         return list.map((item) {
+          if (item is! Map) return ApprovalRequest(id: '', ticketNo: '', empName: '', date: '', details: '', status: '', remarks: '');
+          
           // Mapping different API response structures to a unified ApprovalRequest
           String details = '';
           if (type == 'Attendance' || type == 'Leave') {
@@ -145,6 +149,8 @@ class ApprovalService {
              details = 'Shift: ${item['ShiftName'] ?? ''} (${item['SDate'] ?? ''})';
           } else if (type == 'ProfileChange') {
              details = 'Field: ${item['FieldName'] ?? 'Profile Update'}';
+          } else if (type == 'LeaveComp') {
+             details = item['status'] ?? '';
           }
 
           return ApprovalRequest(
@@ -179,7 +185,7 @@ class ApprovalService {
     switch (type) {
       case 'Attendance': endpoint = 'api/attn/leaveapproval/'; break;
       case 'Leave': endpoint = 'api/attn/leavegapproval/'; break;
-      case 'Permission': endpoint = 'api/attn/PermissionApproval/'; break;
+      case 'Permission': endpoint = 'api/attn/perpproval/'; break;
       case 'Advance': endpoint = 'api/attn/AdvApproval/'; break;
       case 'AdvAdj':
       case 'AdvanceAdjustment': endpoint = 'api/attn/AARApproval/'; break;
@@ -189,6 +195,7 @@ class ApprovalService {
       case 'ITFile': endpoint = 'api/itfileapp/itfileapproval/'; break;
       case 'ShiftDeviation': endpoint = 'api/attn/ShiftDevApproval/'; break;
       case 'ProfileChange': endpoint = 'api/attn/EmpApproval/'; break;
+      case 'LeaveComp': endpoint = 'api/attn/leavegapproval/'; break;
       default: throw Exception('Invalid approval type');
     }
 
@@ -212,7 +219,7 @@ class ApprovalService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final responseData = jsonDecode(data['response']);
-        if (responseData['JSONResult'] != 0) {
+        if (responseData['JSONResult'].toString() != '0') {
           throw Exception(responseData['error'] ?? 'Failed to submit approval');
         }
       } else {
@@ -241,6 +248,7 @@ class ApprovalService {
       case 'ITFile': endpoint = 'api/itfileapp/displayapp/'; break;
       case 'ShiftDeviation': endpoint = 'api/attn/DisplayShiftDevApp/'; break;
       case 'ProfileChange': endpoint = 'api/attn/DisplayEmpApp/'; break;
+      case 'LeaveComp': endpoint = 'api/attn/DisplayLeaveGApp/'; break;
       default: throw Exception('Invalid approval type');
     }
 
@@ -254,7 +262,15 @@ class ApprovalService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return jsonDecode(data['response']);
+        final decodedResponse = jsonDecode(data['response'] ?? '{}');
+        if (decodedResponse is List) {
+          if (decodedResponse.isNotEmpty) {
+            return decodedResponse[0] as Map<String, dynamic>;
+          } else {
+            return {}; // Return empty map if list is empty
+          }
+        }
+        return (decodedResponse as Map<String, dynamic>?) ?? {};
       } else {
         throw Exception('Failed to load details: ${response.statusCode}');
       }
