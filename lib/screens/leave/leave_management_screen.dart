@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../core/ui_constants.dart';
+import '../../core/widgets/leave_balance_table.dart';
 import '../../core/widgets/date_picker_field.dart';
 import '../../data/models/leave_model.dart';
 import '../../data/services/leave_service.dart';
@@ -606,29 +607,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> with Sing
       return Center(child: Text(_balanceError!, style: const TextStyle(color: Colors.red)));
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: AppStyles.modernCardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Leave Balance', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 15),
-          if (_balances.isEmpty)
-            const Text('No leave balances found')
-          else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _balances.map((b) => Padding(
-                  padding: const EdgeInsets.only(right: 20),
-                  child: _buildBalanceItem(b.leaveType, b.yearBalance.toStringAsFixed(1), AppColors.primary),
-                )).toList(),
-              ),
-            ),
-        ],
-      ),
-    );
+    return LeaveBalanceTable(balances: _balances);
   }
 
   Widget _buildBalanceItem(String label, String value, Color color) {
